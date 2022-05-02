@@ -12,6 +12,8 @@ Benefits:
 
 Repository is the component that encapsulate the data resolving layers. It is comprised of a batcher (dataloader) and layers of data resolvers exposed through a simple and consistent API.
 
+![image](https://user-images.githubusercontent.com/16462328/166320037-d88f173d-9249-4229-801d-bbf4ede297e3.png)
+
 To create a repository, use `lapis.New(config lapis.Config)`, see the [config](config) documentation to see the available configurations.
 
 ```golang
@@ -26,6 +28,8 @@ users, errors := userRepository.LoadAll([]int{1, 2, 3})
 
 Data load request will be batched together, reducing backend calls and allows efficient batch loads. Batcher are included by default, although it is possible to disable them through repository configuration.
 
+![image](https://user-images.githubusercontent.com/16462328/166319997-3eaadb55-a5b6-4c9d-9675-e8bf5047b7a6.png)
+
 ### Layer 
 
 Layers are the data providers. They are responsible to fetch the data requested by an array of keys. 
@@ -33,6 +37,8 @@ Layers are the data providers. They are responsible to fetch the data requested 
 1. If a data for a particular key is not available in a layer, the key will be passed to the next layer to be loaded. 
 
 2. After every successful load, all layers before it will be primed with the fetched data.  
+
+![image](https://user-images.githubusercontent.com/16462328/166320081-2d77b693-98f0-40cf-be7d-e851476ceefa.png)
 
 Examples of data layers are: in-memory cache, Redis, PostgreSQL, or external API.
 
