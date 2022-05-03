@@ -12,7 +12,7 @@ import (
 func newSquareMockRepository(t *testing.T) *lapis.Repository[int, int] {
 	repository, err := lapis.New(lapis.Config[int, int]{
 		Layers: []lapis.Layer[int, int]{
-			layer.NewMemory[int, int](layer.MemoryConfig{Retention: 10 * time.Millisecond}),
+			layer.NewMemory[int, int](layer.MemoryConfig{Retention: 10 * time.Hour}),
 			SquareMockBackend{fakeDelay: 100 * time.Millisecond},
 		},
 	})
