@@ -15,11 +15,14 @@ type LoadOption interface {
 type NoBatch struct{}
 
 // Check if NoBatch is present in the options
-func UseNoBatch(options []LoadOption) bool {
-	for _, v := range options {
-		if v.GetType() == LoadOptionNoBatch {
-			return true
+func UseBatch[TKey comparable, TValue any](r *Repository[TKey, TValue], options []LoadOption) bool {
+	if r.batcher.maxBatch > 0 {
+		for _, v := range options {
+			if v.GetType() == LoadOptionNoBatch {
+				return false
+			}
 		}
+		return true
 	}
 	return false
 }

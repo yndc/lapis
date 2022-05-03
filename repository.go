@@ -6,9 +6,6 @@ type Repository[TKey comparable, TValue any] struct {
 	// data resolver layers in this repository
 	layers []Layer[TKey, TValue]
 
-	// load a data in thunk
-	loadThunk func(key TKey) func() (TValue, error)
-
 	// batcher if batching is enabled
 	batcher Batcher[TKey, TValue]
 
@@ -33,9 +30,13 @@ func (r *Repository[TKey, TValue]) getTraceID() uint64 {
 
 // Create a new data repository with the given configuration
 func New[TKey comparable, TValue any](config Config[TKey, TValue]) (*Repository[TKey, TValue], error) {
-	r := &Repository[TKey, TValue]{}
+	r := &Repository[TKey, TValue]{
+		layers: config.Layers,
+	}
 	if config.Batcher.MaxBatch > 0 {
-		r.batcher = Batcher[TKey, TValue]{}
+		r.batcher = Batcher[TKey, TValue]{
+			resolver: r.resolve,
+		}
 	}
 
 	r.registerExtensions(config.Extensions)

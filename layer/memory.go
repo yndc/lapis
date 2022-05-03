@@ -18,7 +18,7 @@ type MemoryConfig struct {
 // Memory layer is map-based in-memory cache, it should be used as the first line of cache
 // with short data expiration
 type Memory[TKey comparable, TValue any] struct {
-	config            *MemoryConfig
+	config            MemoryConfig
 	data              map[TKey]TValue
 	mu                sync.RWMutex
 	invalidationQueue *queue.Queue[tuple.Pair[time.Time, TKey]]
@@ -44,17 +44,18 @@ func (l *Memory[TKey, TValue]) Get(keys []TKey) ([]TValue, []error) {
 }
 
 // The function that will be called for successful resolvers
-func (l *Memory[TKey, TValue]) Set(keys []TKey, values []TValue) {
+func (l *Memory[TKey, TValue]) Set(keys []TKey, values []TValue) []error {
 	l.mu.Lock()
 	for i, k := range keys {
 		l.data[k] = values[i]
 		l.invalidationQueue.Enqueue(tuple.NewPair(time.Now().Add(l.config.Retention), k))
 	}
 	l.mu.Unlock()
+	return nil
 }
 
 // Create a new in-memory data layer
-func New[TKey comparable, TValue any](config *MemoryConfig) *Memory[TKey, TValue] {
+func NewMemory[TKey comparable, TValue any](config MemoryConfig) *Memory[TKey, TValue] {
 	l := &Memory[TKey, TValue]{
 		config: config,
 	}
@@ -64,6 +65,7 @@ func New[TKey comparable, TValue any](config *MemoryConfig) *Memory[TKey, TValue
 
 // deletes records on the cache
 func (l *Memory[TKey, TValue]) startInvalidator() {
+	l.invalidationQueue = queue.NewQueue[tuple.Pair[time.Time, TKey]](1)
 	go func() {
 		throttle := newThrottler(500 * time.Millisecond)
 		for {

@@ -4,10 +4,10 @@ import "context"
 
 // Load a data from it's key
 func (r *Repository[TKey, TValue]) Load(key TKey, options ...LoadOption) (TValue, error) {
-	if UseNoBatch(options) {
-		return Singlify(r.resolve)(key)
+	if UseBatch(r, options) {
+		return r.batcher.Load(key)
 	}
-	return r.batcher.Load(key)
+	return Singlify(r.resolve)(key)
 }
 
 // Load a data by key with a context, if the context is cancelled, the data loading will be cancelled too if
@@ -18,10 +18,10 @@ func (r *Repository[TKey, TValue]) LoadCtx(ctx context.Context, key TKey, option
 
 // Load a set of data from their keys
 func (r *Repository[TKey, TValue]) LoadAll(keys []TKey, options ...LoadOption) ([]TValue, []error) {
-	if UseNoBatch(options) {
-		return r.resolve(keys)
+	if UseBatch(r, options) {
+		return r.batcher.LoadAll(keys)
 	}
-	return r.batcher.LoadAll(keys)
+	return r.resolve(keys)
 }
 
 // Load a set of data from their keys and prime the layers with the data resolved by the next layer
@@ -138,8 +138,8 @@ func group[TKey comparable, TValue any](keys []TKey, values []TValue, errors []e
 	return resolvedIndexes[:resolvedCounter],
 		resolvedKeys[:resolvedCounter],
 		resolvedValues[:resolvedCounter],
-		unresolvedIndexes[:resolvedCounter],
-		unresolvedKeys[:resolvedCounter]
+		unresolvedIndexes[:unresolvedCounter],
+		unresolvedKeys[:unresolvedCounter]
 }
 
 // write the values from the source array into the destination array based on the given indexes
