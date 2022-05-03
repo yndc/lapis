@@ -8,4 +8,7 @@ type Config[TKey comparable, TValue any] struct {
 
 	// The data resolver layers for this repository, executed from the first to the last
 	Layers []Layer[TKey, TValue]
+
+	// Array of extensions to be used
+	Extensions []Extension
 }

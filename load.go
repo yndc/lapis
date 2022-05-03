@@ -33,17 +33,48 @@ func (r *Repository[TKey, TValue]) resolve(keys []TKey) ([]TValue, []error) {
 	var resultIndexes = generateSequence(len(keys)) // an array of indexes from the current layer's array to the original result array
 	var layerKeys = keys                            // set of keys to be resolved by the current layer
 
+	var traceID uint64 = r.getTraceID()
+
+	// execute pre-load hooks before execution
+	if len(r.preLoadHooks) > 0 {
+		preLoadErrors := make([]error, keysCount)
+		for _, hook := range r.preLoadHooks {
+			mergeErrors(preLoadErrors, hook.PreLoadHook(traceID, keys))
+		}
+
+		// filter out the keys that is blocked by the pre-load hooks
+		// TODO
+	}
+
 	// iterate over all data layers from the beginning to the end
 	// if any of the results are empty, try resolving the data from the next layer
 	for layerIndex, layer := range r.layers {
+
+		// execute layer pre-load hooks before execution
+		if len(r.layerPreLoadHooks) > 0 {
+			// TODO block execution for error-returning
+			for _, hook := range r.layerPreLoadHooks {
+				hook.LayerPreLoadHook(traceID, layer, layerKeys)
+			}
+		}
+
 		layerResult, layerErrors := layer.Get(layerKeys)
+
+		// execute layer post-load hooks
+		if len(r.layerPostLoadHooks) > 0 {
+			// TODO strip result for error-returning
+			for _, hook := range r.layerPostLoadHooks {
+				hook.LayerPostLoadHook(traceID, layer, layerKeys, layerResult, layerErrors)
+			}
+		}
+
 		resolvedLayerIndexes, resolvedLayerKeys, resolvedLayerValues, unresolvedLayerIndexes, unresolvedLayerKeys := group(layerKeys, layerResult, layerErrors)
 
 		if len(resolvedLayerKeys) > 0 {
 			resolvedResultIndexes := extract(resultIndexes, resolvedLayerIndexes)
 
 			// merge the resolved values to the result
-			merge(result, resolvedLayerValues, resolvedResultIndexes)
+			mergeWithIndexes(result, resolvedLayerValues, resolvedResultIndexes)
 
 			// clear all errors from previous layers
 			setZero(errors, resolvedResultIndexes)
@@ -64,6 +95,14 @@ func (r *Repository[TKey, TValue]) resolve(keys []TKey) ([]TValue, []error) {
 		// load the unresolved data from the next layer
 		layerKeys = unresolvedLayerKeys
 		resultIndexes = extract(resultIndexes, unresolvedLayerIndexes)
+	}
+
+	// execute post-load hooks
+	if len(r.postLoadHooks) > 0 {
+		// TODO strip result for error-returning
+		for _, hook := range r.postLoadHooks {
+			hook.PostLoadHook(traceID, keys, result, errors)
+		}
 	}
 
 	return result, errors
@@ -104,9 +143,19 @@ func group[TKey comparable, TValue any](keys []TKey, values []TValue, errors []e
 }
 
 // write the values from the source array into the destination array based on the given indexes
-func merge[T any](destination []T, source []T, indexes []int) {
+func mergeWithIndexes[T any](destination []T, source []T, indexes []int) {
 	for i, dstIndex := range indexes {
 		destination[dstIndex] = source[i]
+	}
+}
+
+func mergeErrors(destination []error, array []error) {
+	for i, v := range array {
+		if destination[i] == nil {
+			if v != nil {
+				destination[i] = v
+			}
+		}
 	}
 }
 
