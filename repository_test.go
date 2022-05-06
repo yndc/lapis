@@ -10,8 +10,6 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-	// n := 10000
-
 	squareMockRepository := newSquareMockRepository(t)
 	_, err := squareMockRepository.LoadAll([]int{1, 3, 5})
 	_, err = squareMockRepository.LoadAll([]int{1, 2, 3, 4, 5})
