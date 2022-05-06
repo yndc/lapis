@@ -43,7 +43,7 @@ func TestBatch(t *testing.T) {
 }
 
 func TestToSingleBatch(t *testing.T) {
-	squareMockRepository := newSquareMockRepository(t, 1*time.Second)
+	squareMockRepository := newSquareMockRepository(t, 1000*time.Millisecond)
 	n := 100
 	wg := sync.WaitGroup{}
 	wg.Add(n)
