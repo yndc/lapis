@@ -2,8 +2,7 @@ package lapis
 
 // Extension interface is the base interface used for extensions
 type Extension interface {
-	Name() string    // The extension name
-	Version() string // The extension version
+	Name() string // The extension name
 }
 
 // Extensions that hook on repository initialization

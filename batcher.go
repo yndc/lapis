@@ -1,6 +1,7 @@
 package lapis
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -50,6 +51,7 @@ func (l *Batcher[TKey, TValue]) Load(key TKey) (TValue, error) {
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
 func (l *Batcher[TKey, TValue]) LoadThunk(key TKey) func() (TValue, error) {
+	fmt.Println("loadThunk: waiting for lock")
 	l.mu.Lock()
 	if l.batch == nil {
 		l.batch = &loaderBatch[TKey, TValue]{done: make(chan struct{})}
@@ -57,6 +59,7 @@ func (l *Batcher[TKey, TValue]) LoadThunk(key TKey) func() (TValue, error) {
 	batch := l.batch
 	pos := batch.keyIndex(l, key)
 	l.mu.Unlock()
+	fmt.Println("loadThunk: success")
 
 	return func() (TValue, error) {
 		<-batch.done
@@ -131,7 +134,7 @@ func (b *loaderBatch[TKey, TValue]) keyIndex(l *Batcher[TKey, TValue], key TKey)
 		if !b.closing {
 			b.closing = true
 			l.batch = nil
-			go b.end(l)
+			go b.resolveBatch(l)
 		}
 	}
 
@@ -140,6 +143,7 @@ func (b *loaderBatch[TKey, TValue]) keyIndex(l *Batcher[TKey, TValue], key TKey)
 
 func (b *loaderBatch[TKey, TValue]) startTimer(l *Batcher[TKey, TValue]) {
 	time.Sleep(l.wait)
+	fmt.Println("startTimer: waiting for lock")
 	l.mu.Lock()
 
 	// we must have hit a batch limit and are already finalizing this batch
@@ -151,10 +155,12 @@ func (b *loaderBatch[TKey, TValue]) startTimer(l *Batcher[TKey, TValue]) {
 	l.batch = nil
 	l.mu.Unlock()
 
-	b.end(l)
+	b.resolveBatch(l)
 }
 
-func (b *loaderBatch[TKey, TValue]) end(l *Batcher[TKey, TValue]) {
+func (b *loaderBatch[TKey, TValue]) resolveBatch(l *Batcher[TKey, TValue]) {
+	fmt.Println("start batch resolve")
 	b.data, b.error = l.resolver(b.keys)
+	fmt.Println("end batch resolve")
 	close(b.done)
 }

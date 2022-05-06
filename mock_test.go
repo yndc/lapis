@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/flowscan/lapis"
+	"github.com/flowscan/lapis/extension"
 	"github.com/flowscan/lapis/layer"
 )
 
@@ -14,6 +15,12 @@ func newSquareMockRepository(t *testing.T) *lapis.Repository[int, int] {
 		Layers: []lapis.Layer[int, int]{
 			layer.NewMemory[int, int](layer.MemoryConfig{Retention: 10 * time.Hour}),
 			SquareMockBackend{fakeDelay: 100 * time.Millisecond},
+		},
+		Extensions: []lapis.Extension{
+			extension.Logger[int, int]{},
+		},
+		Batcher: lapis.BatcherConfig[int, int]{
+			MaxBatch: 256,
 		},
 	})
 	if err != nil {

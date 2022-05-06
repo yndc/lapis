@@ -1,6 +1,9 @@
 package lapis
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+	"time"
+)
 
 type Repository[TKey comparable, TValue any] struct {
 	// data resolver layers in this repository
@@ -11,6 +14,11 @@ type Repository[TKey comparable, TValue any] struct {
 
 	// trace counter for trace ID assignment
 	traceCounter uint64
+
+	// flag to use batcher
+	useBatcher bool
+
+	// default load options
 
 	// hooks
 	initializationHooks []InitializationHookExtension[TKey, TValue]
@@ -34,8 +42,11 @@ func New[TKey comparable, TValue any](config Config[TKey, TValue]) (*Repository[
 		layers: config.Layers,
 	}
 	if config.Batcher.MaxBatch > 0 {
+		r.useBatcher = true
 		r.batcher = Batcher[TKey, TValue]{
 			resolver: r.resolve,
+			wait:     zeroFallback(config.Batcher.Wait, 100*time.Millisecond),
+			maxBatch: zeroFallback(config.Batcher.MaxBatch, 256),
 		}
 	}
 

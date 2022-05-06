@@ -3,25 +3,25 @@ package lapis
 import "context"
 
 // Load a data from it's key
-func (r *Repository[TKey, TValue]) Load(key TKey, options ...LoadOption) (TValue, error) {
-	if UseBatch(r, options) {
-		return r.batcher.Load(key)
+func (r *Repository[TKey, TValue]) Load(key TKey, flags ...int) (TValue, error) {
+	if !r.useBatcher || hasFlag(flags, LoadNoBatch) {
+		return Singlify(r.resolve)(key)
 	}
-	return Singlify(r.resolve)(key)
+	return r.batcher.Load(key)
 }
 
 // Load a data by key with a context, if the context is cancelled, the data loading will be cancelled too if
 // this is the only operation
-func (r *Repository[TKey, TValue]) LoadCtx(ctx context.Context, key TKey, options ...LoadOption) (TValue, error) {
+func (r *Repository[TKey, TValue]) LoadCtx(ctx context.Context, key TKey, flags ...[]int) (TValue, error) {
 	panic("not implemented")
 }
 
 // Load a set of data from their keys
-func (r *Repository[TKey, TValue]) LoadAll(keys []TKey, options ...LoadOption) ([]TValue, []error) {
-	if UseBatch(r, options) {
-		return r.batcher.LoadAll(keys)
+func (r *Repository[TKey, TValue]) LoadAll(keys []TKey, flags ...int) ([]TValue, []error) {
+	if !r.useBatcher || hasFlag(flags, LoadNoBatch) {
+		return r.resolve(keys)
 	}
-	return r.resolve(keys)
+	return r.batcher.LoadAll(keys)
 }
 
 // Load a set of data from their keys and prime the layers with the data resolved by the next layer
