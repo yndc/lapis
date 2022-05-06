@@ -34,7 +34,6 @@ func TestBatch(t *testing.T) {
 		for j := 0; j < n; j++ {
 			capturedIndex := j
 			go func() {
-				// time.Sleep(randDuration(0, 100*time.Millisecond))
 				res, err := squareMockRepository.Load(capturedIndex)
 				assert.Nil(t, err)
 				assert.Equal(t, capturedIndex*capturedIndex, res)
