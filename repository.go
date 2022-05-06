@@ -45,7 +45,7 @@ func New[TKey comparable, TValue any](config Config[TKey, TValue]) (*Repository[
 		r.useBatcher = true
 		r.batcher = Batcher[TKey, TValue]{
 			resolver: r.resolve,
-			wait:     zeroFallback(config.Batcher.Wait, 100*time.Millisecond),
+			wait:     zeroFallback(config.Batcher.Wait, 1*time.Millisecond),
 			maxBatch: zeroFallback(config.Batcher.MaxBatch, 256),
 		}
 	}
