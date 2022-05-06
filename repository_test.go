@@ -10,7 +10,7 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-	squareMockRepository := newSquareMockRepository(t)
+	squareMockRepository := newSquareMockRepository(t, 100*time.Millisecond)
 	_, err := squareMockRepository.LoadAll([]int{1, 3, 5})
 	_, err = squareMockRepository.LoadAll([]int{1, 2, 3, 4, 5})
 	_, err = squareMockRepository.LoadAll([]int{2, 6, 4, 8, 9})
@@ -22,7 +22,7 @@ func TestLoad(t *testing.T) {
 }
 
 func TestBatch(t *testing.T) {
-	squareMockRepository := newSquareMockRepository(t)
+	squareMockRepository := newSquareMockRepository(t, 100*time.Millisecond)
 	m := 10
 	n := 50000
 
@@ -40,6 +40,23 @@ func TestBatch(t *testing.T) {
 		}
 		wg.Wait()
 	}
+}
+
+func TestToSingleBatch(t *testing.T) {
+	squareMockRepository := newSquareMockRepository(t, 1*time.Second)
+	n := 100
+	wg := sync.WaitGroup{}
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func() {
+			time.Sleep(randDuration(0, 800*time.Millisecond))
+			res, err := squareMockRepository.Load(10)
+			assert.Nil(t, err)
+			assert.Equal(t, 100, res)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }
 
 func randDuration(from time.Duration, to time.Duration) time.Duration {

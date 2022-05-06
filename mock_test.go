@@ -10,11 +10,11 @@ import (
 )
 
 // create a simple int -> int repository with 2 layers, a in-memory cache and a backend that squares integers with 100ms delay
-func newSquareMockRepository(t *testing.T) *lapis.Repository[int, int] {
+func newSquareMockRepository(t *testing.T, fakeDelay time.Duration) *lapis.Repository[int, int] {
 	repository, err := lapis.New(lapis.Config[int, int]{
 		Layers: []lapis.Layer[int, int]{
 			layer.NewMemory[int, int](layer.MemoryConfig{Retention: 10 * time.Hour}),
-			SquareMockBackend{fakeDelay: 100 * time.Millisecond},
+			SquareMockBackend{fakeDelay: fakeDelay},
 		},
 		Extensions: []lapis.Extension{
 			extension.Logger[int, int]{},
