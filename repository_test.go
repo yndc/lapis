@@ -69,11 +69,6 @@ func TestToSingleBatch(t *testing.T) {
 	wg.Wait()
 }
 
-func randDuration(from time.Duration, to time.Duration) time.Duration {
-	delta := to - from
-	return from + time.Duration(rand.Float64()*float64(delta))
-}
-
 func TestDeepLayers(t *testing.T) {
 	repository, err := lapis.New(lapis.Config[int, int]{
 		Batcher: &lapis.BatcherConfig[int, int]{
@@ -117,4 +112,9 @@ func TestDeepLayers(t *testing.T) {
 	}
 
 	time.Sleep(1000 * time.Millisecond)
+}
+
+func randDuration(from time.Duration, to time.Duration) time.Duration {
+	delta := to - from
+	return from + time.Duration(rand.Float64()*float64(delta))
 }

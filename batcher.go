@@ -17,7 +17,7 @@ type BatcherConfig[TKey comparable, TValue any] struct {
 // Batcher batches and caches requests
 type Batcher[TKey comparable, TValue any] struct {
 	// the resolver for the batched requests
-	resolver func(keys []TKey) ([]TValue, []error)
+	resolver func(keys []TKey, finishKey func(index int, value TValue, err error))
 
 	// how long to done before sending a batch
 	wait time.Duration
@@ -36,14 +36,6 @@ type Batcher[TKey comparable, TValue any] struct {
 
 	// default load flags
 	defaultLoadFlags LoadFlag
-}
-
-type batch[TKey comparable, TValue any] struct {
-	keys    []TKey
-	data    []TValue
-	error   []error
-	done    chan struct{}
-	closing bool
 }
 
 // Load a value by key, batching and caching will be applied automatically
@@ -68,28 +60,28 @@ func (l *Batcher[TKey, TValue]) LoadThunk(key TKey, options ...LoadFlag) func() 
 		if l.pendingBatch != nil {
 			currentBatch = l.pendingBatch
 		} else {
-			currentBatch = &batch[TKey, TValue]{done: make(chan struct{})}
+			currentBatch = &batch[TKey, TValue]{allDone: make(chan struct{})}
 			l.pendingBatch = currentBatch
 		}
 		l.batches[key] = currentBatch
 	}
 
-	pos := currentBatch.keyIndex(l, key)
+	index := currentBatch.keyIndex(l, key)
 	l.mu.Unlock()
 
 	return func() (TValue, error) {
-		<-currentBatch.done
+		<-currentBatch.done[index]
 
 		var data TValue
-		if pos < len(currentBatch.data) {
-			data = currentBatch.data[pos]
+		if index < len(currentBatch.data) {
+			data = currentBatch.data[index]
 		}
 
 		var err error
-		if len(currentBatch.error) == 1 {
-			err = currentBatch.error[0]
-		} else if currentBatch.error != nil {
-			err = currentBatch.error[pos]
+		if len(currentBatch.errors) == 1 {
+			err = currentBatch.errors[0]
+		} else if currentBatch.errors != nil {
+			err = currentBatch.errors[index]
 		}
 
 		return data, err
@@ -129,56 +121,4 @@ func (l *Batcher[TKey, TValue]) LoadAllThunk(keys []TKey) func() ([]TValue, []er
 		}
 		return values, errors
 	}
-}
-
-// keyIndex will return the location of the key in the batch, if its not found
-// it will add the key to the batch
-func (b *batch[TKey, TValue]) keyIndex(l *Batcher[TKey, TValue], key TKey) int {
-	for i, existingKey := range b.keys {
-		if key == existingKey {
-			return i
-		}
-	}
-
-	pos := len(b.keys)
-	b.keys = append(b.keys, key)
-	if pos == 0 {
-		go b.startTimer(l)
-	}
-
-	if l.maxBatch != 0 && pos >= l.maxBatch-1 {
-		if !b.closing {
-			b.closing = true
-			l.pendingBatch = nil
-			go b.resolveBatch(l)
-		}
-	}
-
-	return pos
-}
-
-func (b *batch[TKey, TValue]) startTimer(l *Batcher[TKey, TValue]) {
-	time.Sleep(l.wait)
-	l.mu.Lock()
-
-	// we must have hit a batch limit and are already finalizing this batch
-	if b.closing {
-		l.mu.Unlock()
-		return
-	}
-
-	l.pendingBatch = nil
-	l.mu.Unlock()
-
-	b.resolveBatch(l)
-}
-
-func (b *batch[TKey, TValue]) resolveBatch(l *Batcher[TKey, TValue]) {
-	b.data, b.error = l.resolver(b.keys)
-	close(b.done)
-	l.mu.Lock()
-	for _, key := range b.keys {
-		delete(l.batches, key)
-	}
-	l.mu.Unlock()
 }
