@@ -25,6 +25,9 @@ type Batcher[TKey comparable, TValue any] struct {
 	// this will limit the maximum number of keys to send in one batch, 0 = no limit
 	maxBatch int
 
+	// the current unfinished batch
+	pendingBatch *batch[TKey, TValue]
+
 	// a map of keys to active batches that has the key in the batch
 	batches map[TKey]*batch[TKey, TValue]
 
@@ -33,10 +36,11 @@ type Batcher[TKey comparable, TValue any] struct {
 }
 
 type batch[TKey comparable, TValue any] struct {
-	keys  []TKey
-	data  []TValue
-	error []error
-	done  chan struct{}
+	keys    []TKey
+	data    []TValue
+	error   []error
+	done    chan struct{}
+	closing bool
 }
 
 // Load a value by key, batching and caching will be applied automatically
@@ -48,31 +52,41 @@ func (l *Batcher[TKey, TValue]) Load(key TKey) (TValue, error) {
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
 func (l *Batcher[TKey, TValue]) LoadThunk(key TKey) func() (TValue, error) {
-	var activeBatch *batch[TKey, TValue]
+	var currentBatch *batch[TKey, TValue]
 	l.mu.Lock()
+
+	// priority of batch to be used:
+	// (1) existing batch with the same key
+	// (2) pending batch
+	// (3) create a new batch
 	if existingBatch, ok := l.batches[key]; ok {
-		activeBatch = existingBatch
+		currentBatch = existingBatch
 	} else {
-		activeBatch = &batch[TKey, TValue]{done: make(chan struct{})}
-		l.batches[key] = activeBatch
+		if l.pendingBatch != nil {
+			currentBatch = l.pendingBatch
+		} else {
+			currentBatch = &batch[TKey, TValue]{done: make(chan struct{})}
+			l.pendingBatch = currentBatch
+		}
+		l.batches[key] = currentBatch
 	}
 
-	pos := activeBatch.keyIndex(l, key)
+	pos := currentBatch.keyIndex(l, key)
 	l.mu.Unlock()
 
 	return func() (TValue, error) {
-		<-activeBatch.done
+		<-currentBatch.done
 
 		var data TValue
-		if pos < len(activeBatch.data) {
-			data = activeBatch.data[pos]
+		if pos < len(currentBatch.data) {
+			data = currentBatch.data[pos]
 		}
 
 		var err error
-		if len(activeBatch.error) == 1 {
-			err = activeBatch.error[0]
-		} else if activeBatch.error != nil {
-			err = activeBatch.error[pos]
+		if len(currentBatch.error) == 1 {
+			err = currentBatch.error[0]
+		} else if currentBatch.error != nil {
+			err = currentBatch.error[pos]
 		}
 
 		return data, err
@@ -126,10 +140,34 @@ func (b *batch[TKey, TValue]) keyIndex(l *Batcher[TKey, TValue], key TKey) int {
 	pos := len(b.keys)
 	b.keys = append(b.keys, key)
 	if pos == 0 {
-		go b.resolveBatch(l)
+		go b.startTimer(l)
+	}
+
+	if l.maxBatch != 0 && pos >= l.maxBatch-1 {
+		if !b.closing {
+			b.closing = true
+			l.pendingBatch = nil
+			go b.resolveBatch(l)
+		}
 	}
 
 	return pos
+}
+
+func (b *batch[TKey, TValue]) startTimer(l *Batcher[TKey, TValue]) {
+	time.Sleep(l.wait)
+	l.mu.Lock()
+
+	// we must have hit a batch limit and are already finalizing this batch
+	if b.closing {
+		l.mu.Unlock()
+		return
+	}
+
+	l.pendingBatch = nil
+	l.mu.Unlock()
+
+	b.resolveBatch(l)
 }
 
 func (b *batch[TKey, TValue]) resolveBatch(l *Batcher[TKey, TValue]) {
