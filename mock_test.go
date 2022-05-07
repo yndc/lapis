@@ -1,6 +1,8 @@
 package lapis_test
 
 import (
+	"fmt"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -19,7 +21,7 @@ func newSquareMockRepository(t *testing.T, fakeDelay time.Duration) *lapis.Repos
 		Extensions: []lapis.Extension{
 			extension.Logger[int, int]{},
 		},
-		Batcher: lapis.BatcherConfig[int, int]{
+		Batcher: &lapis.BatcherConfig[int, int]{
 			MaxBatch: 256,
 		},
 	})
@@ -46,5 +48,33 @@ func (s SquareMockBackend) Get(keys []int) ([]int, []error) {
 }
 
 func (s SquareMockBackend) Set(keys []int, values []int) []error {
+	return nil
+}
+
+type UnstableBackend struct {
+	fakeDelay          time.Duration
+	successProbability float64
+}
+
+func (s UnstableBackend) Identifier() string {
+	return fmt.Sprintf("UnstableBackend %f", s.successProbability)
+}
+
+func (s UnstableBackend) Get(keys []int) ([]int, []error) {
+	time.Sleep(s.fakeDelay)
+	result := make([]int, len(keys))
+	errors := make([]error, len(keys))
+	for i, key := range keys {
+		r := rand.Float64()
+		if r < s.successProbability {
+			result[i] = key * key
+		} else {
+			errors[i] = lapis.NewErrNotFound(key)
+		}
+	}
+	return result, errors
+}
+
+func (s UnstableBackend) Set(keys []int, values []int) []error {
 	return nil
 }

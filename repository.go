@@ -19,6 +19,7 @@ type Repository[TKey comparable, TValue any] struct {
 	useBatcher bool
 
 	// default load options
+	defaultLoadFlags LoadFlag
 
 	// hooks
 	initializationHooks []InitializationHookExtension[TKey, TValue]
@@ -55,7 +56,7 @@ func New[TKey comparable, TValue any](config Config[TKey, TValue]) (*Repository[
 
 	// Execute initialization hooks
 	for _, hook := range r.initializationHooks {
-		err := hook.InitializationHook(config.Layers)
+		err := hook.InitializationHook(r, config.Layers)
 		if err != nil {
 			return nil, err
 		}

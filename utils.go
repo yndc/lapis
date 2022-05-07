@@ -47,14 +47,6 @@ func zero[T any]() T {
 	return zero
 }
 
-func hasFlag(flags []int, flag int) bool {
-	sum := 0
-	for _, f := range flags {
-		sum = sum | f
-	}
-	return (sum & flag) == flag
-}
-
 func zeroFallback[T comparable](input T, fallback T) T {
 	var zero T
 	if input == zero {

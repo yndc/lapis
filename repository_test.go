@@ -2,12 +2,22 @@ package lapis_test
 
 import (
 	"math/rand"
+	"os"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/flowscan/lapis"
+	"github.com/flowscan/lapis/extension"
+	"github.com/flowscan/lapis/layer"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestMain(m *testing.M) {
+	rand.Seed(time.Now().UnixMicro())
+	code := m.Run()
+	os.Exit(code)
+}
 
 func TestLoad(t *testing.T) {
 	squareMockRepository := newSquareMockRepository(t, 100*time.Millisecond)
@@ -62,4 +72,49 @@ func TestToSingleBatch(t *testing.T) {
 func randDuration(from time.Duration, to time.Duration) time.Duration {
 	delta := to - from
 	return from + time.Duration(rand.Float64()*float64(delta))
+}
+
+func TestDeepLayers(t *testing.T) {
+	repository, err := lapis.New(lapis.Config[int, int]{
+		Batcher: &lapis.BatcherConfig[int, int]{
+			MaxBatch: 256,
+		},
+		Layers: []lapis.Layer[int, int]{
+			layer.NewMemory[int, int](layer.MemoryConfig{Retention: 100 * time.Millisecond}),
+			UnstableBackend{fakeDelay: 100 * time.Millisecond, successProbability: 0.1},
+			UnstableBackend{fakeDelay: 100 * time.Millisecond, successProbability: 0.2},
+			UnstableBackend{fakeDelay: 100 * time.Millisecond, successProbability: 0.3},
+			UnstableBackend{fakeDelay: 100 * time.Millisecond, successProbability: 0.4},
+			UnstableBackend{fakeDelay: 100 * time.Millisecond, successProbability: 0.5},
+			UnstableBackend{fakeDelay: 100 * time.Millisecond, successProbability: 0.6},
+			UnstableBackend{fakeDelay: 100 * time.Millisecond, successProbability: 0.7},
+			UnstableBackend{fakeDelay: 100 * time.Millisecond, successProbability: 0.8},
+			UnstableBackend{fakeDelay: 100 * time.Millisecond, successProbability: 0.9},
+			UnstableBackend{fakeDelay: 100 * time.Millisecond, successProbability: 1.0},
+		},
+		Extensions: []lapis.Extension{
+			extension.Logger[int, int]{},
+		},
+	})
+
+	assert.Nil(t, err)
+
+	m := 10
+	n := 100
+	for i := 0; i < m; i++ {
+		wg := sync.WaitGroup{}
+		wg.Add(n)
+		for j := 0; j < n; j++ {
+			capturedIndex := j
+			go func() {
+				res, err := repository.Load(capturedIndex)
+				assert.Nil(t, err)
+				assert.Equal(t, capturedIndex*capturedIndex, res)
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+	}
+
+	time.Sleep(1000 * time.Millisecond)
 }

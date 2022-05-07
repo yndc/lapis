@@ -3,8 +3,8 @@ package lapis
 import "context"
 
 // Load a data from it's key
-func (r *Repository[TKey, TValue]) Load(key TKey, flags ...int) (TValue, error) {
-	if !r.useBatcher || hasFlag(flags, LoadNoBatch) {
+func (r *Repository[TKey, TValue]) Load(key TKey, flags ...LoadFlag) (TValue, error) {
+	if !r.useBatcher || hasLoadFlag(r.defaultLoadFlags, flags, LoadNoBatch) {
 		return Singlify(r.resolve)(key)
 	}
 	return r.batcher.Load(key)
@@ -17,8 +17,8 @@ func (r *Repository[TKey, TValue]) LoadCtx(ctx context.Context, key TKey, flags 
 }
 
 // Load a set of data from their keys
-func (r *Repository[TKey, TValue]) LoadAll(keys []TKey, flags ...int) ([]TValue, []error) {
-	if !r.useBatcher || hasFlag(flags, LoadNoBatch) {
+func (r *Repository[TKey, TValue]) LoadAll(keys []TKey, flags ...LoadFlag) ([]TValue, []error) {
+	if !r.useBatcher || hasLoadFlag(r.defaultLoadFlags, flags, LoadNoBatch) {
 		return r.resolve(keys)
 	}
 	return r.batcher.LoadAll(keys)
@@ -82,7 +82,21 @@ func (r *Repository[TKey, TValue]) resolve(keys []TKey) ([]TValue, []error) {
 			// prime the data on the previous layers
 			if layerIndex > 0 {
 				for i := layerIndex - 1; i >= 0; i-- {
-					go r.layers[i].Set(resolvedLayerKeys, resolvedLayerValues)
+					capturedIndex := i
+					go func() {
+						// execute layer pre-set hooks
+						for _, hook := range r.layerPreSetHooks {
+							// TODO strip result for error-returning
+							hook.LayerPreSetHook(traceID, r.layers[capturedIndex], resolvedLayerKeys, resolvedLayerValues)
+						}
+
+						setErrors := r.layers[capturedIndex].Set(resolvedLayerKeys, resolvedLayerValues)
+
+						// execute layer post-set hooks
+						for _, hook := range r.layerPostSetHooks {
+							hook.LayerPostSetHook(traceID, r.layers[capturedIndex], resolvedLayerKeys, resolvedLayerValues, setErrors)
+						}
+					}()
 				}
 			}
 

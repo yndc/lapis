@@ -26,9 +26,21 @@ users, errors := userRepository.LoadAll([]int{1, 2, 3})
 
 ### Batcher 
 
-Data load request will be batched together, reducing backend calls and allows efficient batch loads. Batcher are included by default, although it is possible to disable them through repository configuration.
+Requests will first be processed by the batcher to be optimized, by deduplicating requests of the same resource and collecting multiple requests to be resolved together in one batch. Batched can be enabled by providing a batcher config in the creation of `Repository`
+
+#### Request Collector
+
+Data load requests of a repository will be collected first to be batched together, reducing backend calls and allows efficient batch loads by the layers (e.g. `MGET` for redis and single SQL query with `WHERE IN`). If a repository has a batcher enabled, the collector is also enabled by default. It is possible to disable the collector by using `LoadNoCollectBatch` when loading resources.
 
 ![image](https://user-images.githubusercontent.com/16462328/166319997-3eaadb55-a5b6-4c9d-9675-e8bf5047b7a6.png)
+
+#### Request Sharing
+
+The batcher also support deduplicating on-going requests. Suppose that you have an on-going data request call for a resource with the key `X` that takes 10 seconds to load (suppose that it's not cached yet). Any subsequent requests to that resource whilst the first batch is ongoing will wait for the results from the first batch instead of creating a new request. 
+
+This could reduce the number of slow and redundant backend calls. Although this could affect the response time for resources that is supposed to be fast (e.g. cached). 
+
+It is recommended to use request collector or sharing exclusively, collector is more suitable on resources that are fast to resolve with high variation of requests. Request sharing is more suitable for slow resolvers with low variation of requests.
 
 ### Layer 
 

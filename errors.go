@@ -8,7 +8,7 @@ type ErrNotFound[TKey any] struct {
 }
 
 func (m ErrNotFound[TKey]) Error() string {
-	return fmt.Sprintf("%v not found", m.key)
+	return fmt.Sprintf("not found: (%v)", m.key)
 }
 
 func NewErrNotFound[TKey any](key TKey) ErrNotFound[TKey] {
