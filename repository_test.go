@@ -1,9 +1,11 @@
 package lapis_test
 
 import (
+	"fmt"
 	"math/rand"
 	"os"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -21,11 +23,11 @@ func TestMain(m *testing.M) {
 
 func TestLoad(t *testing.T) {
 	squareMockRepository := newSquareMockRepository(t, 100*time.Millisecond)
-	_, err := squareMockRepository.LoadAll([]int{1, 3, 5})
-	_, err = squareMockRepository.LoadAll([]int{1, 2, 3, 4, 5})
-	_, err = squareMockRepository.LoadAll([]int{2, 6, 4, 8, 9})
-	_, err = squareMockRepository.LoadAll([]int{2, 6, 4, 8, 9})
-	_, err = squareMockRepository.LoadAll([]int{6, 7, 8, 9, 0})
+	squareMockRepository.LoadAll([]int{1, 3, 5})
+	squareMockRepository.LoadAll([]int{1, 2, 3, 4, 5})
+	squareMockRepository.LoadAll([]int{2, 6, 4, 8, 9})
+	squareMockRepository.LoadAll([]int{2, 6, 4, 8, 9})
+	squareMockRepository.LoadAll([]int{6, 7, 8, 9, 0})
 	r, err := squareMockRepository.LoadAll([]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
 	assert.Equal(t, err, []error{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil})
 	assert.Equal(t, r, []int{0, 1, 4, 9, 16, 25, 36, 49, 64, 81})
@@ -112,6 +114,108 @@ func TestDeepLayers(t *testing.T) {
 	}
 
 	time.Sleep(1000 * time.Millisecond)
+}
+
+func TestSet(t *testing.T) {
+	backend := &SettableBackend{fakeDelay: 0 * time.Millisecond, multiplier: 1}
+	repository, err := lapis.New(lapis.Config[int, int]{
+		Batcher: &lapis.BatcherConfig[int, int]{
+			MaxBatch: 256,
+			Wait:     10 * time.Millisecond,
+		},
+		Layers: []lapis.Layer[int, int]{
+			layer.NewMemory[int, int](layer.MemoryConfig{Retention: 50 * time.Millisecond}),
+			backend,
+		},
+		Extensions: []lapis.Extension{
+			extension.Logger[int, int]{},
+		},
+	})
+
+	assert.Nil(t, err)
+
+	// e := 10
+	m := 10
+	n := 1000
+	var errorCount int32 = 0
+	var epoch int32 = 1
+	var done chan struct{} = make(chan struct{})
+	wg := sync.WaitGroup{}
+	wg.Add(n * m)
+	go func() {
+		for {
+			time.Sleep(100 * time.Millisecond)
+			select {
+			case <-done:
+				return
+			default:
+				newValue := atomic.AddInt32(&epoch, 1)
+				backend.SetMultiplier(newValue)
+			}
+		}
+	}()
+	for i := 0; i < m; i++ {
+		for j := 0; j < n; j++ {
+			capturedIndex := j
+			go func() {
+				time.Sleep(randDuration(0, 3000*time.Millisecond))
+				res, err := repository.Load(capturedIndex)
+				assert.Nil(t, err)
+				if res != capturedIndex*int(epoch) {
+					fmt.Printf("key: %v expected: %v (epoch %v, actual: %v)\n", capturedIndex, capturedIndex*int(epoch), epoch, res/capturedIndex)
+					atomic.AddInt32(&errorCount, 1)
+				}
+				wg.Done()
+			}()
+		}
+	}
+	wg.Wait()
+	close(done)
+
+	errorRatePct := int(errorCount) * 100 / (m * n)
+	assert.True(t, errorRatePct < 10)
+}
+
+func TestPartialError(t *testing.T) {
+	backend := &NotPrimeOnlyBackend{fakeDelay: 100 * time.Millisecond}
+	repository, err := lapis.New(lapis.Config[int, int]{
+		Batcher: &lapis.BatcherConfig[int, int]{
+			MaxBatch: 256,
+			Wait:     10 * time.Millisecond,
+		},
+		Layers: []lapis.Layer[int, int]{
+			layer.NewMemory[int, int](layer.MemoryConfig{Retention: 50 * time.Millisecond}),
+			backend,
+		},
+		Extensions: []lapis.Extension{
+			extension.Logger[int, int]{},
+		},
+	})
+
+	assert.Nil(t, err)
+
+	m := 100
+	n := 1000
+	wg := sync.WaitGroup{}
+	wg.Add(n * m)
+	for i := 0; i < m; i++ {
+		for j := 0; j < n; j++ {
+			capturedIndex := j
+			go func() {
+				time.Sleep(randDuration(0, 1000*time.Millisecond))
+				res, err := repository.Load(capturedIndex)
+				if isPrime(capturedIndex) {
+					assert.NotNil(t, err)
+					assert.Equal(t, res, 0)
+				} else {
+					assert.Nil(t, err)
+					assert.Equal(t, res, capturedIndex)
+				}
+				wg.Done()
+			}()
+		}
+	}
+	wg.Wait()
 }
 
 func randDuration(from time.Duration, to time.Duration) time.Duration {

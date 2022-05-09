@@ -60,7 +60,9 @@ func NewMemory[TKey comparable, TValue any](config MemoryConfig) *Memory[TKey, T
 		config: config,
 		data:   make(map[TKey]TValue),
 	}
-	l.startInvalidator()
+	if config.Retention > 0 {
+		l.startInvalidator()
+	}
 	return l
 }
 
@@ -68,13 +70,13 @@ func NewMemory[TKey comparable, TValue any](config MemoryConfig) *Memory[TKey, T
 func (l *Memory[TKey, TValue]) startInvalidator() {
 	l.invalidationQueue = queue.NewQueue[tuple.Pair[time.Time, TKey]](1)
 	go func() {
-		throttle := newThrottler(500 * time.Millisecond)
+		throttle := newThrottler(l.config.Retention)
 		for {
 			throttle.Throttle()
 			for l.invalidationQueue.Len() > 0 {
 				nextJob := l.invalidationQueue.Dequeue()
 				if time.Now().Before(nextJob.V1) {
-					time.Sleep(nextJob.V1.Sub(time.Now()))
+					time.Sleep(time.Until(nextJob.V1))
 				}
 				l.mu.Lock()
 				delete(l.data, nextJob.V2)

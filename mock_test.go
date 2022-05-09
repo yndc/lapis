@@ -2,7 +2,9 @@ package lapis_test
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -77,4 +79,70 @@ func (s UnstableBackend) Get(keys []int) ([]int, []error) {
 
 func (s UnstableBackend) Set(keys []int, values []int) []error {
 	return nil
+}
+
+type SettableBackend struct {
+	fakeDelay  time.Duration
+	multiplier int32
+}
+
+func (s *SettableBackend) Identifier() string {
+	return "SettableBackend"
+}
+
+func (s *SettableBackend) Get(keys []int) ([]int, []error) {
+	time.Sleep(s.fakeDelay)
+	result := make([]int, len(keys))
+	errors := make([]error, len(keys))
+	for i, key := range keys {
+		result[i] = int(s.multiplier) * key
+	}
+	return result, errors
+}
+
+func (s *SettableBackend) Set(keys []int, values []int) []error {
+	return nil
+}
+
+func (s *SettableBackend) SetMultiplier(value int32) {
+	atomic.AddInt32(&s.multiplier, value-s.multiplier)
+}
+
+type NotPrimeOnlyBackend struct {
+	fakeDelay time.Duration
+}
+
+func (s *NotPrimeOnlyBackend) Identifier() string {
+	return "IsNotPrimeOnlyBackend"
+}
+
+func (s *NotPrimeOnlyBackend) Get(keys []int) ([]int, []error) {
+	time.Sleep(s.fakeDelay)
+	result := make([]int, len(keys))
+	errors := make([]error, len(keys))
+	for i, key := range keys {
+		if isPrime(key) {
+			errors[i] = lapis.NewErrNotFound(key)
+		} else {
+			result[i] = key
+		}
+	}
+	return result, errors
+}
+
+func (s *NotPrimeOnlyBackend) Set(keys []int, values []int) []error {
+	return nil
+}
+
+func isPrime(x int) bool {
+	if x < 4 {
+		return true
+	}
+	sq_root := int(math.Sqrt(float64(x)))
+	for i := 2; i <= sq_root; i++ {
+		if x%i == 0 {
+			return false
+		}
+	}
+	return true
 }
