@@ -6,6 +6,9 @@ import (
 )
 
 type Repository[TKey comparable, TValue any] struct {
+	// identifier for the repository
+	identifier string
+
 	// data resolver layers in this repository
 	layers []Layer[TKey, TValue]
 
@@ -31,6 +34,11 @@ type Repository[TKey comparable, TValue any] struct {
 	postSetHooks        []PostSetHookExtension[TKey, TValue]
 	layerPreSetHooks    []LayerPreSetHookExtension[TKey, TValue]
 	layerPostSetHooks   []LayerPostSetHookExtension[TKey, TValue]
+}
+
+// Get the identifier of the repository
+func (r *Repository[TKey, TValue]) Identifier() string {
+	return r.identifier
 }
 
 func (r *Repository[TKey, TValue]) getTraceID() uint64 {

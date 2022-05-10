@@ -29,7 +29,7 @@ func (r *Repository[TKey, TValue]) resolve(keys []TKey, finishKey func(index int
 		if len(r.layerPreLoadHooks) > 0 {
 			// TODO block execution for error-returning
 			for _, hook := range r.layerPreLoadHooks {
-				hook.LayerPreLoadHook(traceID, layer, layerKeys)
+				hook.LayerPreLoadHook(traceID, layerIndex, layerKeys)
 			}
 		}
 
@@ -39,7 +39,7 @@ func (r *Repository[TKey, TValue]) resolve(keys []TKey, finishKey func(index int
 		if len(r.layerPostLoadHooks) > 0 {
 			// TODO strip result for error-returning
 			for _, hook := range r.layerPostLoadHooks {
-				hook.LayerPostLoadHook(traceID, layer, layerKeys, layerResult, layerErrors)
+				hook.LayerPostLoadHook(traceID, layerIndex, layerKeys, layerResult, layerErrors)
 			}
 		}
 
@@ -61,14 +61,14 @@ func (r *Repository[TKey, TValue]) resolve(keys []TKey, finishKey func(index int
 						// execute layer pre-set hooks
 						for _, hook := range r.layerPreSetHooks {
 							// TODO strip result for error-returning
-							hook.LayerPreSetHook(traceID, r.layers[capturedIndex], resolvedLayerKeys, resolvedLayerValues)
+							hook.LayerPreSetHook(traceID, capturedIndex, resolvedLayerKeys, resolvedLayerValues)
 						}
 
 						setErrors := r.layers[capturedIndex].Set(resolvedLayerKeys, resolvedLayerValues)
 
 						// execute layer post-set hooks
 						for _, hook := range r.layerPostSetHooks {
-							hook.LayerPostSetHook(traceID, r.layers[capturedIndex], resolvedLayerKeys, resolvedLayerValues, setErrors)
+							hook.LayerPostSetHook(traceID, capturedIndex, resolvedLayerKeys, resolvedLayerValues, setErrors)
 						}
 					}()
 				}

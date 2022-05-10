@@ -21,7 +21,7 @@ func newSquareMockRepository(t *testing.T, fakeDelay time.Duration) *lapis.Repos
 			SquareMockBackend{fakeDelay: fakeDelay},
 		},
 		Extensions: []lapis.Extension{
-			extension.Logger[int, int]{},
+			&extension.Logger[int, int]{},
 		},
 		Batcher: &lapis.BatcherConfig[int, int]{
 			MaxBatch: 256,

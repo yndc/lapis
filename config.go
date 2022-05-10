@@ -2,6 +2,8 @@ package lapis
 
 // Configuration for a repository
 type Config[TKey comparable, TValue any] struct {
+	// Identifier for this repository
+	Identifier string
 
 	// Configuration for the batcher, if not included batching will be disabled
 	Batcher *BatcherConfig[TKey, TValue]

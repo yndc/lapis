@@ -76,7 +76,7 @@ func (r *Repository[TKey, TValue]) layerSet(traceID uint64, layerIndex int, keys
 	if len(r.layerPreSetHooks) > 0 {
 		// TODO block execution for error-returning
 		for _, hook := range r.layerPreSetHooks {
-			hook.LayerPreSetHook(traceID, layer, keys, values)
+			hook.LayerPreSetHook(traceID, layerIndex, keys, values)
 		}
 	}
 
@@ -86,7 +86,7 @@ func (r *Repository[TKey, TValue]) layerSet(traceID uint64, layerIndex int, keys
 	// execute layer post-set hook
 	if len(r.layerPostSetHooks) > 0 {
 		for _, hook := range r.layerPostSetHooks {
-			hook.LayerPostSetHook(traceID, layer, keys, values, errors)
+			hook.LayerPostSetHook(traceID, layerIndex, keys, values, errors)
 		}
 	}
 

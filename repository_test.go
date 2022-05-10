@@ -12,6 +12,8 @@ import (
 	"github.com/flowscan/lapis"
 	"github.com/flowscan/lapis/extension"
 	"github.com/flowscan/lapis/layer"
+	"github.com/prometheus/client_golang/prometheus"
+	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -90,7 +92,7 @@ func TestDeepLayers(t *testing.T) {
 			UnstableBackend{fakeDelay: 100 * time.Millisecond, successProbability: 1.0},
 		},
 		Extensions: []lapis.Extension{
-			extension.Logger[int, int]{},
+			&extension.Logger[int, int]{},
 		},
 	})
 
@@ -128,7 +130,7 @@ func TestSet(t *testing.T) {
 			backend,
 		},
 		Extensions: []lapis.Extension{
-			extension.Logger[int, int]{},
+			&extension.Logger[int, int]{},
 		},
 	})
 
@@ -188,13 +190,13 @@ func TestPartialError(t *testing.T) {
 			backend,
 		},
 		Extensions: []lapis.Extension{
-			extension.Logger[int, int]{},
+			&extension.Logger[int, int]{},
 		},
 	})
 
 	assert.Nil(t, err)
 
-	m := 100
+	m := 10
 	n := 1000
 	wg := sync.WaitGroup{}
 	wg.Add(n * m)
@@ -216,6 +218,68 @@ func TestPartialError(t *testing.T) {
 		}
 	}
 	wg.Wait()
+}
+
+func TestPrometheus(t *testing.T) {
+	backend := &NotPrimeOnlyBackend{fakeDelay: 100 * time.Millisecond}
+	metrics := extension.NewRepositoryMetrics()
+	repository, err := lapis.New(lapis.Config[int, int]{
+		Identifier: "test_prometheus",
+		Batcher: &lapis.BatcherConfig[int, int]{
+			MaxBatch: 256,
+			Wait:     10 * time.Millisecond,
+		},
+		Layers: []lapis.Layer[int, int]{
+			layer.NewMemory[int, int](layer.MemoryConfig{Retention: 50 * time.Millisecond}),
+			backend,
+		},
+		Extensions: []lapis.Extension{
+			&extension.Logger[int, int]{},
+			extension.NewPrometheusMetrics[int, int](metrics),
+		},
+	})
+
+	assert.Nil(t, err)
+
+	m := 10
+	n := 1000
+	wg := sync.WaitGroup{}
+	wg.Add(n * m)
+	for i := 0; i < m; i++ {
+		for j := 0; j < n; j++ {
+			capturedIndex := j
+			go func() {
+				time.Sleep(randDuration(0, 1000*time.Millisecond))
+				res, err := repository.Load(capturedIndex)
+				if isPrime(capturedIndex) {
+					assert.NotNil(t, err)
+					assert.Equal(t, res, 0)
+				} else {
+					assert.Nil(t, err)
+					assert.Equal(t, res, capturedIndex)
+				}
+				wg.Done()
+			}()
+		}
+	}
+	wg.Wait()
+
+	c := make(chan prometheus.Metric)
+	go metrics.LayerLoadBatchHistogram.Collect(c)
+	go metrics.LayerLoadTimeHistogram.Collect(c)
+	go func() {
+		for {
+			printMetric(<-c)
+		}
+	}()
+
+	time.Sleep(1000 * time.Millisecond)
+}
+
+func printMetric(metric prometheus.Metric) {
+	val := &io_prometheus_client.Metric{}
+	metric.Write(val)
+	fmt.Printf("%v: %v\n", metric.Desc(), val)
 }
 
 func randDuration(from time.Duration, to time.Duration) time.Duration {

@@ -26,13 +26,13 @@ type PostLoadHookExtension[TKey comparable, TValue any] interface {
 // Extensions that hook before a batched data load from a layer
 // TODO: If an error is returned for a particular index, the layer won't load that particular index
 type LayerPreLoadHookExtension[TKey comparable, TValue any] interface {
-	LayerPreLoadHook(traceID uint64, layer Layer[TKey, TValue], keys []TKey) []error
+	LayerPreLoadHook(traceID uint64, layerIndex int, keys []TKey) []error
 }
 
 // Extensions that hook after a batched data load from a layer
 // TODO: If an error is returned for a particular index, the value resolved by this layer won't be combined with the result, the next layer will try to resolve it
 type LayerPostLoadHookExtension[TKey comparable, TValue any] interface {
-	LayerPostLoadHook(traceID uint64, layer Layer[TKey, TValue], keys []TKey, values []TValue, errors []error) []error
+	LayerPostLoadHook(traceID uint64, layerIndex int, keys []TKey, values []TValue, errors []error) []error
 }
 
 // Extensions that hook before a data set operation
@@ -49,10 +49,10 @@ type PostSetHookExtension[TKey comparable, TValue any] interface {
 // Extensions that hook before a data set operation of a layer
 // TODO: If an error is returned for a particular index, the set operation will be blocked for that index at the current layer
 type LayerPreSetHookExtension[TKey comparable, TValue any] interface {
-	LayerPreSetHook(traceID uint64, layer Layer[TKey, TValue], keys []TKey, values []TValue) []error
+	LayerPreSetHook(traceID uint64, layerIndex int, keys []TKey, values []TValue) []error
 }
 
 // Extensions that hook after a data set operation of a layer
 type LayerPostSetHookExtension[TKey comparable, TValue any] interface {
-	LayerPostSetHook(traceID uint64, layer Layer[TKey, TValue], keys []TKey, values []TValue, errors []error)
+	LayerPostSetHook(traceID uint64, layerIndex int, keys []TKey, values []TValue, errors []error)
 }
