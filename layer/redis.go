@@ -92,14 +92,10 @@ func (l *RedisGob[TKey, TValue]) Set(keys []TKey, values []TValue) []error {
 	return nil
 }
 
-// Create a new in-memory data layer
-func NewRedis[TKey comparable, TValue any](config MemoryConfig) *Memory[TKey, TValue] {
-	l := &Memory[TKey, TValue]{
+// Create a new redis data layer
+func NewRedis[TKey comparable, TValue any](config RedisConfig) *RedisGob[TKey, TValue] {
+	l := &RedisGob[TKey, TValue]{
 		config: config,
-		data:   make(map[TKey]TValue),
-	}
-	if config.Retention > 0 {
-		l.startInvalidator()
 	}
 	return l
 }
