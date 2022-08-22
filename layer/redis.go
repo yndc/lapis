@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/flowscan/lapis"
 	"github.com/mediocregopher/radix/v3"
 	"github.com/rs/zerolog/log"
 )
@@ -41,12 +42,14 @@ func (l *RedisGob[TKey, TValue]) Get(keys []TKey) ([]TValue, []error) {
 	if err := l.config.Connection.Do(radix.Cmd(&cacheBuffer, "MGET", stringifyKeys(keys, l.config.KeyPrefix)...)); err != nil {
 		fillArray(errors, err)
 	} else {
-		for i := range keys {
+		for i, k := range keys {
 			if cacheBuffer[i] != nil {
 				buffer := bytes.NewBuffer(cacheBuffer[i])
 				if err := gob.NewDecoder(buffer).Decode(&result[i]); err != nil {
 					errors[i] = err
 				}
+			} else {
+				errors[i] = lapis.NewErrNotFound(k)
 			}
 		}
 	}
