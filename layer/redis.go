@@ -13,6 +13,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// A hard-coded constant for nil values to differentiate nil and undefined (not found) values
+const RedisNilValue = "__@@@__LAPIS_REDIS_NIL_VALUE"
+
 // Configuration for the redis data layer
 type RedisConfig struct {
 	// The duration of the cached data, set 0 to disable expiration
@@ -44,6 +47,11 @@ func (l *RedisGob[TKey, TValue]) Get(keys []TKey) ([]TValue, []error) {
 	} else {
 		for i, k := range keys {
 			if cacheBuffer[i] != nil {
+				// handle nil values since it is defined with a constant
+				if string(cacheBuffer[i]) == RedisNilValue {
+					var zeroValue TValue
+					result[i] = zeroValue
+				}
 				buffer := bytes.NewBuffer(cacheBuffer[i])
 				if err := gob.NewDecoder(buffer).Decode(&result[i]); err != nil {
 					errors[i] = err
@@ -65,9 +73,11 @@ func (l *RedisGob[TKey, TValue]) Set(keys []TKey, values []TValue) []error {
 	cacheArguments := make([]string, 2*count)
 	keysString := stringifyKeys(keys, l.config.KeyPrefix)
 	for i, value := range values {
-		// gob does not support nil pointers
+		// handle nil values
+		// gob does not support nil pointers unfortunately
 		if reflect.TypeOf(value).Kind() == reflect.Pointer && reflect.ValueOf(value).IsNil() {
-			cacheArguments[2*i+1] = "nil"
+			// we set the hard-coded nil constant for nil values
+			cacheArguments[2*i+1] = RedisNilValue
 		} else {
 			b := bytes.Buffer{}
 			err := gob.NewEncoder(&b).Encode(value)
