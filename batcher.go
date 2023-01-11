@@ -46,7 +46,7 @@ func (l *Batcher[TKey, TValue]) Load(key TKey) (TValue, error) {
 // LoadThunk returns a function that when called will block waiting
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
-func (l *Batcher[TKey, TValue]) LoadThunk(key TKey, options ...LoadFlag) func() (TValue, error) {
+func (l *Batcher[TKey, TValue]) LoadThunk(key TKey, flags ...LoadFlag) func() (TValue, error) {
 	var currentBatch *batch[TKey, TValue]
 	l.mu.Lock()
 
@@ -54,7 +54,7 @@ func (l *Batcher[TKey, TValue]) LoadThunk(key TKey, options ...LoadFlag) func() 
 	// (1) existing batch with the same key
 	// (2) pending batch
 	// (3) create a new batch
-	if existingBatch, ok := l.batches[key]; !hasLoadFlag(l.defaultLoadFlags, options, LoadNoShareBatch) && ok {
+	if existingBatch, ok := l.batches[key]; !hasLoadFlag(l.defaultLoadFlags, flags, LoadNoShareBatch) && ok {
 		currentBatch = existingBatch
 	} else {
 		if l.pendingBatch != nil {

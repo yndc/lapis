@@ -21,7 +21,7 @@ type Store[TKey comparable, TValue any] struct {
 	// flag to use batcher
 	useBatcher bool
 
-	// default load options
+	// default load flags
 	defaultLoadFlags LoadFlag
 
 	// hooks

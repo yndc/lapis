@@ -16,14 +16,14 @@ type StaticStore[TValue any] struct {
 }
 
 // Get data from the store
-func (r *StaticStore[TValue]) Get(value TValue, options ...LoadFlag) (TValue, error) {
-	return r.store.Load(staticTypePlaceholder{}, options...)
+func (r *StaticStore[TValue]) Get(value TValue, flags ...LoadFlag) (TValue, error) {
+	return r.store.Load(staticTypePlaceholder{}, flags...)
 }
 
 // Set the store data to all of the layers
 // Returns an array of errors with each item represents an error returned by a layer
-func (r *StaticStore[TValue]) Set(value TValue, options ...SetOption) []error {
-	return kvToStaticErrors(r.store.SetAll(staticKey(), []TValue{value}, options...))
+func (r *StaticStore[TValue]) Set(value TValue, flags ...SetFlag) []error {
+	return kvToStaticErrors(r.store.SetAll(staticKey(), []TValue{value}, flags...))
 }
 
 // take the 2D array result from KV store implementation, then restructure it for the static store implementation

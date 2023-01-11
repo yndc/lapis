@@ -4,11 +4,11 @@ import "sync"
 
 // Set a set of data to all of layers
 // Returns an array of array of errors with the first dimension as the key and second dimension as the layer
-func (r *Store[TKey, TValue]) SetAll(keys []TKey, values []TValue, options ...SetOption) [][]error {
+func (r *Store[TKey, TValue]) SetAll(keys []TKey, values []TValue, flags ...SetFlag) [][]error {
 	layerIndexes := make([]int, len(r.layers))
-	if sequential := GetOption[Sequential](options, SetOptionSequential); sequential != nil {
+	if hasSetFlag(0, flags, SetSequential) {
 		var initial, iterationChange, endCondition int
-		if ascending := GetOption[Ascending](options, SetOptionAscending); ascending != nil {
+		if hasSetFlag(0, flags, SetAscending) {
 			initial = 0
 			iterationChange = 1
 			endCondition = len(r.layers)
