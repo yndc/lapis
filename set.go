@@ -29,6 +29,13 @@ func (r *Store[TKey, TValue]) SetAll(keys []TKey, values []TValue, flags ...SetF
 	}
 }
 
+// Set a specific key value into the store
+// Returns an array of array of errors from each layer
+func (r *Store[TKey, TValue]) Set(key TKey, value TValue, flags ...SetFlag) []error {
+	return singlifyErrors(r.SetAll([]TKey{key}, []TValue{value}, flags...))
+}
+
+// prime a set of KV data on all layers
 func (r *Store[TKey, TValue]) set(layerIndexes []int, keys []TKey, values []TValue, sequential bool) [][]error {
 	var traceID uint64 = r.getTraceID()
 	var errors = make([][]error, len(r.layers))
@@ -69,6 +76,7 @@ func (r *Store[TKey, TValue]) set(layerIndexes []int, keys []TKey, values []TVal
 	return errors
 }
 
+// prime a set of KV data on one layer
 func (r *Store[TKey, TValue]) layerSet(traceID uint64, layerIndex int, keys []TKey, values []TValue) []error {
 	layer := r.layers[layerIndex]
 

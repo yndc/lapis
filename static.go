@@ -4,11 +4,6 @@ package lapis
 // placeholder type for the key used in static stores
 type staticTypePlaceholder struct{}
 
-// create an array of static key of size 1
-func staticKey() []staticTypePlaceholder {
-	return []staticTypePlaceholder{{}}
-}
-
 // StaticStore is a special type of store where a key or input
 // is not required to fetch data from the store
 type StaticStore[TValue any] struct {
@@ -23,11 +18,11 @@ func (r *StaticStore[TValue]) Get(value TValue, flags ...LoadFlag) (TValue, erro
 // Set the store data to all of the layers
 // Returns an array of errors with each item represents an error returned by a layer
 func (r *StaticStore[TValue]) Set(value TValue, flags ...SetFlag) []error {
-	return kvToStaticErrors(r.store.SetAll(staticKey(), []TValue{value}, flags...))
+	return r.store.Set(staticTypePlaceholder{}, value, flags...)
 }
 
-// take the 2D array result from KV store implementation, then restructure it for the static store implementation
-func kvToStaticErrors(original [][]error) []error {
+// take the 2D array result from multi-key errors result to single-key result
+func singlifyErrors(original [][]error) []error {
 	result := make([]error, len(original))
 	for i, layerValues := range original {
 		if len(layerValues) > 0 && layerValues[0] != nil {
