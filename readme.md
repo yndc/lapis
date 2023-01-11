@@ -1,6 +1,6 @@
 # Lapis 
 
-Lapis is a small library to build data access layers with batching and multilayer caching support. Inspired by [Facebook's dataloader](https://github.com/graphql/dataloader).
+Lapis is a small library to build data read store with batching and multilayer caching support. Inspired by [Facebook's dataloader](https://github.com/graphql/dataloader).
 
 Benefits:
 - Simple and consistent data loading APIs
@@ -68,3 +68,8 @@ type Layer[TKey comparable, TValue any] interface {
 	Set(keys []TKey, values []TValue)
 }
 ```
+## Data Writes 
+
+All Lapis repositories can be primed with a data. This operation will set the given data into all layers.
+
+Data writes is designed for priming data to reduce heavy back-end calls on data updates, we do not recommend using Lapis on its own as a read and write model. 

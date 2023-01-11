@@ -23,16 +23,3 @@ func (r *Repository[TKey, TValue]) LoadAll(keys []TKey, flags ...LoadFlag) ([]TV
 	}
 	return r.batcher.LoadAll(keys)
 }
-
-// Wait for all of the given contexes to be closed
-func WaitAll(chans ...<-chan struct{}) <-chan struct{} {
-	done := make(chan struct{})
-	go func() {
-		for _, c := range chans {
-			<-c
-		}
-		close(done)
-	}()
-
-	return done
-}
