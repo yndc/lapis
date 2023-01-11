@@ -13,9 +13,9 @@ import (
 	"github.com/flowscan/lapis/layer"
 )
 
-// create a simple int -> int repository with 2 layers, a in-memory cache and a backend that squares integers with 100ms delay
-func newSquareMockRepository(t *testing.T, fakeDelay time.Duration) *lapis.Repository[int, int] {
-	repository, err := lapis.New(lapis.Config[int, int]{
+// create a simple int -> int store with 2 layers, a in-memory cache and a backend that squares integers with 100ms delay
+func newSquareMockStore(t *testing.T, fakeDelay time.Duration) *lapis.Store[int, int] {
+	store, err := lapis.New(lapis.Config[int, int]{
 		Layers: []lapis.Layer[int, int]{
 			layer.NewMemory[int, int](layer.MemoryConfig{Retention: 10 * time.Hour}),
 			SquareMockBackend{fakeDelay: fakeDelay},
@@ -28,10 +28,10 @@ func newSquareMockRepository(t *testing.T, fakeDelay time.Duration) *lapis.Repos
 		},
 	})
 	if err != nil {
-		t.Fatalf("failed to create mock square repository")
+		t.Fatalf("failed to create mock square store")
 	}
 
-	return repository
+	return store
 }
 
 type SquareMockBackend struct {

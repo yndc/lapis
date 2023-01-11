@@ -4,7 +4,7 @@ import "sync"
 
 // Set a set of data to all of layers
 // Returns an array of array of errors with the first dimension as the key and second dimension as the layer
-func (r *Repository[TKey, TValue]) SetAll(keys []TKey, values []TValue, options ...SetOption) [][]error {
+func (r *Store[TKey, TValue]) SetAll(keys []TKey, values []TValue, options ...SetOption) [][]error {
 	layerIndexes := make([]int, len(r.layers))
 	if sequential := GetOption[Sequential](options, SetOptionSequential); sequential != nil {
 		var initial, iterationChange, endCondition int
@@ -29,7 +29,7 @@ func (r *Repository[TKey, TValue]) SetAll(keys []TKey, values []TValue, options 
 	}
 }
 
-func (r *Repository[TKey, TValue]) set(layerIndexes []int, keys []TKey, values []TValue, sequential bool) [][]error {
+func (r *Store[TKey, TValue]) set(layerIndexes []int, keys []TKey, values []TValue, sequential bool) [][]error {
 	var traceID uint64 = r.getTraceID()
 	var errors = make([][]error, len(r.layers))
 
@@ -69,7 +69,7 @@ func (r *Repository[TKey, TValue]) set(layerIndexes []int, keys []TKey, values [
 	return errors
 }
 
-func (r *Repository[TKey, TValue]) layerSet(traceID uint64, layerIndex int, keys []TKey, values []TValue) []error {
+func (r *Store[TKey, TValue]) layerSet(traceID uint64, layerIndex int, keys []TKey, values []TValue) []error {
 	layer := r.layers[layerIndex]
 
 	// execute layer pre-set hook

@@ -1,14 +1,14 @@
 package lapis
 
-// Configuration for a repository
+// Configuration for a store
 type Config[TKey comparable, TValue any] struct {
-	// Identifier for this repository
+	// Identifier for this store
 	Identifier string
 
 	// Configuration for the batcher, if not included batching will be disabled
 	Batcher *BatcherConfig[TKey, TValue]
 
-	// The data resolver layers for this repository, executed from the first to the last
+	// The data resolver layers for this store, executed from the first to the last
 	Layers []Layer[TKey, TValue]
 
 	// Default load flags

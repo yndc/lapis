@@ -19,7 +19,7 @@ type Logger[TKey comparable, TValue any] struct {
 
 func (e *Logger[TKey, TValue]) Name() string { return "Logger" }
 
-func (e *Logger[TKey, TValue]) InitializationHook(r *lapis.Repository[TKey, TValue], layers []lapis.Layer[TKey, TValue]) error {
+func (e *Logger[TKey, TValue]) InitializationHook(r *lapis.Store[TKey, TValue], layers []lapis.Layer[TKey, TValue]) error {
 	e.layers = layers
 	loggerLayerLoadStartAt = make(map[string]map[uint64]time.Time)
 	loggerLayerSetStartAt = make(map[string]map[uint64]time.Time)
@@ -27,7 +27,7 @@ func (e *Logger[TKey, TValue]) InitializationHook(r *lapis.Repository[TKey, TVal
 		loggerLayerLoadStartAt[layer.Identifier()] = make(map[uint64]time.Time)
 		loggerLayerSetStartAt[layer.Identifier()] = make(map[uint64]time.Time)
 	}
-	log.Debug().Msgf("repository initialized")
+	log.Debug().Msgf("store initialized")
 	return nil
 }
 
@@ -71,8 +71,8 @@ func (e *Logger[TKey, TValue]) LayerPostLoadHook(traceID uint64, layerIndex int,
 	// 	} else {
 	// 		status = Error
 	// 	}
-	// 	// e.metrics.LayerLoadCounter.WithLabelValues(e.repositoryName, e.layerIdentifiers[layerIndex], status).Inc()
-	// 	// e.metrics.LayerLoadTimeGauge.WithLabelValues(e.repositoryName, e.layerIdentifiers[layerIndex], status).Set(traceTime)
+	// 	// e.metrics.LayerLoadCounter.WithLabelValues(e.storeName, e.layerIdentifiers[layerIndex], status).Inc()
+	// 	// e.metrics.LayerLoadTimeGauge.WithLabelValues(e.storeName, e.layerIdentifiers[layerIndex], status).Set(traceTime)
 	// }
 	return nil
 }

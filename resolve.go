@@ -1,7 +1,7 @@
 package lapis
 
 // Load a set of data from their keys and prime the layers with the data resolved by the next layer
-func (r *Repository[TKey, TValue]) resolve(keys []TKey, finishKey func(index int, value TValue, err error)) {
+func (r *Store[TKey, TValue]) resolve(keys []TKey, finishKey func(index int, value TValue, err error)) {
 	var keysCount = len(keys)
 
 	var errors []error = make([]error, keysCount)
@@ -105,7 +105,7 @@ func (r *Repository[TKey, TValue]) resolve(keys []TKey, finishKey func(index int
 	// }
 }
 
-func (r *Repository[TKey, TValue]) resolveAndCollect(keys []TKey) ([]TValue, []error) {
+func (r *Store[TKey, TValue]) resolveAndCollect(keys []TKey) ([]TValue, []error) {
 	result := make([]TValue, len(keys))
 	errors := make([]error, len(keys))
 	r.resolve(keys, func(index int, value TValue, err error) {

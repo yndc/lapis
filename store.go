@@ -5,11 +5,11 @@ import (
 	"time"
 )
 
-type Repository[TKey comparable, TValue any] struct {
-	// identifier for the repository
+type Store[TKey comparable, TValue any] struct {
+	// identifier for the store
 	identifier string
 
-	// data resolver layers in this repository
+	// data resolver layers in this store
 	layers []Layer[TKey, TValue]
 
 	// batcher if batching is enabled
@@ -36,18 +36,18 @@ type Repository[TKey comparable, TValue any] struct {
 	layerPostSetHooks   []LayerPostSetHookExtension[TKey, TValue]
 }
 
-// Get the identifier of the repository
-func (r *Repository[TKey, TValue]) Identifier() string {
+// Get the identifier of the store
+func (r *Store[TKey, TValue]) Identifier() string {
 	return r.identifier
 }
 
-func (r *Repository[TKey, TValue]) getTraceID() uint64 {
+func (r *Store[TKey, TValue]) getTraceID() uint64 {
 	return atomic.AddUint64(&r.traceCounter, 1)
 }
 
-// Create a new data repository with the given configuration
-func New[TKey comparable, TValue any](config Config[TKey, TValue]) (*Repository[TKey, TValue], error) {
-	r := &Repository[TKey, TValue]{
+// Create a new data store with the given configuration
+func New[TKey comparable, TValue any](config Config[TKey, TValue]) (*Store[TKey, TValue], error) {
+	r := &Store[TKey, TValue]{
 		layers: config.Layers,
 	}
 	if config.Batcher.MaxBatch > 0 {
@@ -73,7 +73,7 @@ func New[TKey comparable, TValue any](config Config[TKey, TValue]) (*Repository[
 	return r, nil
 }
 
-func (r *Repository[TKey, TValue]) registerExtensions(extensions []Extension) {
+func (r *Store[TKey, TValue]) registerExtensions(extensions []Extension) {
 	r.initializationHooks = make([]InitializationHookExtension[TKey, TValue], 0)
 	r.preLoadHooks = make([]PreLoadHookExtension[TKey, TValue], 0)
 	r.postLoadHooks = make([]PostLoadHookExtension[TKey, TValue], 0)

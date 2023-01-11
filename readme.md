@@ -10,27 +10,27 @@ Benefits:
 
 ## Architecture
 
-Repository is the component that encapsulate the data resolving layers. It is comprised of a batcher (dataloader) and layers of data resolvers exposed through a simple and consistent API.
+Store is the component that encapsulate the data resolving layers. It is comprised of a batcher (dataloader) and layers of data resolvers exposed through a simple and consistent API.
 
 ![image](https://user-images.githubusercontent.com/16462328/166320037-d88f173d-9249-4229-801d-bbf4ede297e3.png)
 
-To create a repository, use `lapis.New(config lapis.Config)`, see the [config](config) documentation to see the available configurations.
+To create a store, use `lapis.New(config lapis.Config)`, see the [config](config) documentation to see the available configurations.
 
 ```golang
 // Load an user by it's ID
-user, err := userRepository.Load(1)
+user, err := userStore.Load(1)
 
 // Load multiple records in one call
-users, errors := userRepository.LoadAll([]int{1, 2, 3})
+users, errors := userStore.LoadAll([]int{1, 2, 3})
 ```
 
 ### Batcher 
 
-Requests will first be processed by the batcher to be optimized, by deduplicating requests of the same resource and collecting multiple requests to be resolved together in one batch. Batched can be enabled by providing a batcher config in the creation of `Repository`
+Requests will first be processed by the batcher to be optimized, by deduplicating requests of the same resource and collecting multiple requests to be resolved together in one batch. Batched can be enabled by providing a batcher config in the creation of `Store`
 
 #### Request Collector
 
-Data load requests of a repository will be collected first to be batched together, reducing backend calls and allows efficient batch loads by the layers (e.g. `MGET` for redis and single SQL query with `WHERE IN`). If a repository has a batcher enabled, the collector is also enabled by default. It is possible to disable the collector by using `LoadNoCollectBatch` when loading resources.
+Data load requests of a store will be collected first to be batched together, reducing backend calls and allows efficient batch loads by the layers (e.g. `MGET` for redis and single SQL query with `WHERE IN`). If a store has a batcher enabled, the collector is also enabled by default. It is possible to disable the collector by using `LoadNoCollectBatch` when loading resources.
 
 ![image](https://user-images.githubusercontent.com/16462328/166319997-3eaadb55-a5b6-4c9d-9675-e8bf5047b7a6.png)
 
@@ -70,6 +70,6 @@ type Layer[TKey comparable, TValue any] interface {
 ```
 ## Data Writes 
 
-All Lapis repositories can be primed with a data. This operation will set the given data into all layers.
+All Lapis stores can be primed with a data. This operation will set the given data into all layers.
 
 Data writes is designed for priming data to reduce heavy back-end calls on data updates, we do not recommend using Lapis on its own as a read and write model. 

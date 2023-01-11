@@ -5,10 +5,10 @@ type Extension interface {
 	Name() string // The extension name
 }
 
-// Extensions that hook on repository initialization
-// If error is returned, then the repository initialization will be stopped and returns an error
+// Extensions that hook on store initialization
+// If error is returned, then the store initialization will be stopped and returns an error
 type InitializationHookExtension[TKey comparable, TValue any] interface {
-	InitializationHook(r *Repository[TKey, TValue], layers []Layer[TKey, TValue]) error
+	InitializationHook(r *Store[TKey, TValue], layers []Layer[TKey, TValue]) error
 }
 
 // Extensions that hook before a batched data load

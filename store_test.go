@@ -24,19 +24,19 @@ func TestMain(m *testing.M) {
 }
 
 func TestLoad(t *testing.T) {
-	squareMockRepository := newSquareMockRepository(t, 100*time.Millisecond)
-	squareMockRepository.LoadAll([]int{1, 3, 5})
-	squareMockRepository.LoadAll([]int{1, 2, 3, 4, 5})
-	squareMockRepository.LoadAll([]int{2, 6, 4, 8, 9})
-	squareMockRepository.LoadAll([]int{2, 6, 4, 8, 9})
-	squareMockRepository.LoadAll([]int{6, 7, 8, 9, 0})
-	r, err := squareMockRepository.LoadAll([]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+	squareMockStore := newSquareMockStore(t, 100*time.Millisecond)
+	squareMockStore.LoadAll([]int{1, 3, 5})
+	squareMockStore.LoadAll([]int{1, 2, 3, 4, 5})
+	squareMockStore.LoadAll([]int{2, 6, 4, 8, 9})
+	squareMockStore.LoadAll([]int{2, 6, 4, 8, 9})
+	squareMockStore.LoadAll([]int{6, 7, 8, 9, 0})
+	r, err := squareMockStore.LoadAll([]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
 	assert.Equal(t, err, []error{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil})
 	assert.Equal(t, r, []int{0, 1, 4, 9, 16, 25, 36, 49, 64, 81})
 }
 
 func TestBatch(t *testing.T) {
-	squareMockRepository := newSquareMockRepository(t, 100*time.Millisecond)
+	squareMockStore := newSquareMockStore(t, 100*time.Millisecond)
 	m := 10
 	n := 50000
 
@@ -46,7 +46,7 @@ func TestBatch(t *testing.T) {
 		for j := 0; j < n; j++ {
 			capturedIndex := j
 			go func() {
-				res, err := squareMockRepository.Load(capturedIndex)
+				res, err := squareMockStore.Load(capturedIndex)
 				assert.Nil(t, err)
 				assert.Equal(t, capturedIndex*capturedIndex, res)
 				wg.Done()
@@ -57,14 +57,14 @@ func TestBatch(t *testing.T) {
 }
 
 func TestToSingleBatch(t *testing.T) {
-	squareMockRepository := newSquareMockRepository(t, 1000*time.Millisecond)
+	squareMockStore := newSquareMockStore(t, 1000*time.Millisecond)
 	n := 10000
 	wg := sync.WaitGroup{}
 	wg.Add(n)
 	for i := 0; i < n; i++ {
 		go func() {
 			time.Sleep(randDuration(0, 800*time.Millisecond))
-			res, err := squareMockRepository.Load(10)
+			res, err := squareMockStore.Load(10)
 			assert.Nil(t, err)
 			assert.Equal(t, 100, res)
 			wg.Done()
@@ -74,7 +74,7 @@ func TestToSingleBatch(t *testing.T) {
 }
 
 func TestDeepLayers(t *testing.T) {
-	repository, err := lapis.New(lapis.Config[int, int]{
+	store, err := lapis.New(lapis.Config[int, int]{
 		Batcher: &lapis.BatcherConfig[int, int]{
 			MaxBatch: 256,
 		},
@@ -106,7 +106,7 @@ func TestDeepLayers(t *testing.T) {
 		for j := 0; j < n; j++ {
 			capturedIndex := j
 			go func() {
-				res, err := repository.Load(capturedIndex)
+				res, err := store.Load(capturedIndex)
 				assert.Nil(t, err)
 				assert.Equal(t, capturedIndex*capturedIndex, res)
 				wg.Done()
@@ -120,7 +120,7 @@ func TestDeepLayers(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	backend := &SettableBackend{fakeDelay: 0 * time.Millisecond, multiplier: 1}
-	repository, err := lapis.New(lapis.Config[int, int]{
+	store, err := lapis.New(lapis.Config[int, int]{
 		Batcher: &lapis.BatcherConfig[int, int]{
 			MaxBatch: 256,
 			Wait:     10 * time.Millisecond,
@@ -161,7 +161,7 @@ func TestSet(t *testing.T) {
 			capturedIndex := j
 			go func() {
 				time.Sleep(randDuration(0, 3000*time.Millisecond))
-				res, err := repository.Load(capturedIndex)
+				res, err := store.Load(capturedIndex)
 				assert.Nil(t, err)
 				if res != capturedIndex*int(epoch) {
 					fmt.Printf("key: %v expected: %v (epoch %v, actual: %v)\n", capturedIndex, capturedIndex*int(epoch), epoch, res/capturedIndex)
@@ -180,7 +180,7 @@ func TestSet(t *testing.T) {
 
 func TestPartialError(t *testing.T) {
 	backend := &NotPrimeOnlyBackend{fakeDelay: 100 * time.Millisecond}
-	repository, err := lapis.New(lapis.Config[int, int]{
+	store, err := lapis.New(lapis.Config[int, int]{
 		Batcher: &lapis.BatcherConfig[int, int]{
 			MaxBatch: 256,
 			Wait:     10 * time.Millisecond,
@@ -205,7 +205,7 @@ func TestPartialError(t *testing.T) {
 			capturedIndex := j
 			go func() {
 				time.Sleep(randDuration(0, 1000*time.Millisecond))
-				res, err := repository.Load(capturedIndex)
+				res, err := store.Load(capturedIndex)
 				if isPrime(capturedIndex) {
 					assert.NotNil(t, err)
 					assert.Equal(t, res, 0)
@@ -222,8 +222,8 @@ func TestPartialError(t *testing.T) {
 
 func TestPrometheus(t *testing.T) {
 	backend := &NotPrimeOnlyBackend{fakeDelay: 100 * time.Millisecond}
-	metrics := extension.NewRepositoryMetrics()
-	repository, err := lapis.New(lapis.Config[int, int]{
+	metrics := extension.NewStoreMetrics()
+	store, err := lapis.New(lapis.Config[int, int]{
 		Identifier: "test_prometheus",
 		Batcher: &lapis.BatcherConfig[int, int]{
 			MaxBatch: 256,
@@ -250,7 +250,7 @@ func TestPrometheus(t *testing.T) {
 			capturedIndex := j
 			go func() {
 				time.Sleep(randDuration(0, 1000*time.Millisecond))
-				res, err := repository.Load(capturedIndex)
+				res, err := store.Load(capturedIndex)
 				if isPrime(capturedIndex) {
 					assert.NotNil(t, err)
 					assert.Equal(t, res, 0)
