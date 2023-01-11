@@ -2,11 +2,10 @@ package lapis
 
 import (
 	"sync"
-	"time"
 )
 
 // Convert a handler into a batch handler, each keys will be handled in parallel
-func Batchify[TKey comparable, TValue any](f Handler[TKey, TValue]) BatchHandler[TKey, TValue] {
+func batchify[TKey comparable, TValue any](f Handler[TKey, TValue]) BatchHandler[TKey, TValue] {
 	return func(keys []TKey) ([]TValue, []error) {
 		values := make([]TValue, len(keys))
 		errors := make([]error, len(keys))
@@ -30,7 +29,7 @@ func Batchify[TKey comparable, TValue any](f Handler[TKey, TValue]) BatchHandler
 }
 
 // Convert a batch handler to a single handler
-func Singlify[TKey comparable, TValue any](f BatchHandler[TKey, TValue]) Handler[TKey, TValue] {
+func singlify[TKey comparable, TValue any](f BatchHandler[TKey, TValue]) Handler[TKey, TValue] {
 	return func(key TKey) (TValue, error) {
 		keys := []TKey{key}
 		result, errors := f(keys)
@@ -53,14 +52,4 @@ func zeroFallback[T comparable](input T, fallback T) T {
 		return fallback
 	}
 	return input
-}
-
-// stopwatch measures the time elapsed between the start of the function
-func stopwatch() func() time.Duration {
-	start := time.Now()
-	return func() time.Duration {
-		elapsed := time.Since(start)
-		start = time.Now()
-		return elapsed
-	}
 }

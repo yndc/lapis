@@ -6,7 +6,7 @@ type staticTypePlaceholder struct{}
 
 // create an array of static key of size 1
 func staticKey() []staticTypePlaceholder {
-	return []staticTypePlaceholder{staticTypePlaceholder{}}
+	return []staticTypePlaceholder{{}}
 }
 
 // StaticRepository is a special type of repository where a key or input

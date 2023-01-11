@@ -5,7 +5,7 @@ import "context"
 // Load a data from it's key
 func (r *Repository[TKey, TValue]) Load(key TKey, flags ...LoadFlag) (TValue, error) {
 	if !r.useBatcher || hasLoadFlag(r.defaultLoadFlags, flags, LoadNoBatch) {
-		return Singlify(r.resolveAndCollect)(key)
+		return singlify(r.resolveAndCollect)(key)
 	}
 	return r.batcher.Load(key)
 }

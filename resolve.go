@@ -173,14 +173,6 @@ func mergeErrors(destination []error, array []error) {
 	}
 }
 
-// set the elements in the destination array to setZero
-func setZero[T any](destination []T, indexes []int) {
-	var zero T
-	for _, dstIndex := range indexes {
-		destination[dstIndex] = zero
-	}
-}
-
 // extract an array from the original array using the given indexes
 func extract[T any](source []T, indexes []int) []T {
 	result := make([]T, len(indexes))
