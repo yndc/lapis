@@ -43,7 +43,7 @@ func (l *Batcher[TKey, TValue]) Load(key TKey) (TValue, error) {
 	return l.LoadThunk(key)()
 }
 
-// LoadThunk returns a function that when called will block waiting
+// LoadThunk returns a function that when called will block the thread until the requested data is resolved
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
 func (l *Batcher[TKey, TValue]) LoadThunk(key TKey, flags ...LoadFlag) func() (TValue, error) {
@@ -105,7 +105,7 @@ func (l *Batcher[TKey, TValue]) LoadAll(keys []TKey) ([]TValue, []error) {
 	return result, errors
 }
 
-// LoadAllThunk returns a function that when called will block waiting for valyes
+// LoadAllThunk returns a function that when called will block waiting for values
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
 func (l *Batcher[TKey, TValue]) LoadAllThunk(keys []TKey) func() ([]TValue, []error) {

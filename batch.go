@@ -15,7 +15,8 @@ type batch[TKey comparable, TValue any] struct {
 }
 
 // keyIndex will return the location of the key in the batch, if its not found
-// it will add the key to the batch
+// it will add the key to the batch, if it is the first key in the batch, then the
+// batch timer will be started
 func (b *batch[TKey, TValue]) keyIndex(l *Batcher[TKey, TValue], key TKey) int {
 	for i, existingKey := range b.keys {
 		if key == existingKey {
@@ -45,7 +46,7 @@ func (b *batch[TKey, TValue]) startTimer(l *Batcher[TKey, TValue]) {
 	time.Sleep(l.wait)
 	l.mu.Lock()
 
-	// we must have hit a batch limit and are already finalizing this batch
+	// hit a batch limit and are already finalizing this batch
 	if b.closing {
 		l.mu.Unlock()
 		return

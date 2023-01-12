@@ -1,16 +1,26 @@
 # Lapis 
 
-Lapis is a small library to build data read store with batching and multilayer caching support. Inspired by [Facebook's dataloader](https://github.com/graphql/dataloader).
+Lapis is a small library to build data read stores with batching and multilayer caching support. Inspired by [Facebook's dataloader](https://github.com/graphql/dataloader).
 
-Benefits:
-- Simple and consistent data loading APIs
-- Reducing requests to backends through request batching
-- Multi-layer caching
-- Extensible through hooks
+## Features 
+
+### Streamlined data loading APIs
+
+### Automatic multi-layer caching
+
+### Automatic cache refresh 
+
+TODO: Feature under development
+
+### Batched backend calls
+
+### Reducing redundant backend calls 
+
+### Extensible through hooks
 
 ## Architecture
 
-Store is the component that encapsulate the data resolving layers. It is comprised of a batcher (dataloader) and layers of data resolvers exposed through a simple and consistent API.
+A store is an instance that handles data loading and caching for a model. Data is accessed through a key-value API such as `Load(key)`, where key could be a simple identifier or a query object. A store is comprised of a batcher (dataloader) and layers of data resolvers.
 
 ![image](https://user-images.githubusercontent.com/16462328/166320037-d88f173d-9249-4229-801d-bbf4ede297e3.png)
 
@@ -26,21 +36,19 @@ users, errors := userStore.LoadAll([]int{1, 2, 3})
 
 ### Batcher 
 
-Requests will first be processed by the batcher to be optimized, by deduplicating requests of the same resource and collecting multiple requests to be resolved together in one batch. Batched can be enabled by providing a batcher config in the creation of `Store`
+Requests (calls of `Load` and `LoadAll`) will first be processed by the batcher to be optimized. The batcher has two main job to optimize requests: request batching and request deduplication.
 
-#### Request Collector
+#### Request Batching
 
-Data load requests of a store will be collected first to be batched together, reducing backend calls and allows efficient batch loads by the layers (e.g. `MGET` for redis and single SQL query with `WHERE IN`). If a store has a batcher enabled, the collector is also enabled by default. It is possible to disable the collector by using `LoadNoCollectBatch` when loading resources.
+Requests will be first collected to be batched together, reducing backend calls and enabling efficient batch loads by the underlying storage (e.g. `MGET` for redis and single SQL query with `WHERE IN`).
 
 ![image](https://user-images.githubusercontent.com/16462328/166319997-3eaadb55-a5b6-4c9d-9675-e8bf5047b7a6.png)
 
-#### Request Sharing
+#### Request Deduplication
 
-The batcher also support deduplicating on-going requests. Suppose that you have an on-going data request call for a resource with the key `X` that takes 10 seconds to load (suppose that it's not cached yet). Any subsequent requests to that resource whilst the first batch is ongoing will wait for the results from the first batch instead of creating a new request. 
+The batcher also support deduplicating on-going requests. Suppose that you have an on-going data request call for a resource with the key `X` that takes the backend 10 seconds to load. Any subsequent requests to that resource whilst the first batch is ongoing will wait for the results from the first batch instead of creating a new request. 
 
-This could reduce the number of slow and redundant backend calls. Although this could affect the response time for resources that is supposed to be fast (e.g. cached). 
-
-It is recommended to use request collector or sharing exclusively, collector is more suitable on resources that are fast to resolve with high variation of requests. Request sharing is more suitable for slow resolvers with low variation of requests.
+This could reduce the number of slow and redundant backend calls.
 
 ### Layer 
 
@@ -54,7 +62,7 @@ Layers are the data providers. They are responsible to fetch the data requested 
 
 Examples of data layers are: in-memory cache, Redis, PostgreSQL, or external API.
 
-Implementing a data layer is really easy, they implement the `lapis.Layer` interface:
+Data layers implement the `lapis.Layer` interface:
 
 ```golang
 type Layer[TKey comparable, TValue any] interface {
@@ -73,3 +81,11 @@ type Layer[TKey comparable, TValue any] interface {
 All Lapis stores can be primed with a data. This operation will set the given data into all layers.
 
 Data writes is designed for priming data to reduce heavy back-end calls on data updates, we do not recommend using Lapis on its own as a read and write model. 
+
+## Best Practice
+
+### Layers must be idempotent 
+
+Lapis is a library designed purely for retrieving data, and hence there is no guarantee that a request will hit all of the data layers. All layers must be idempotent and only serve to return data for the given query key.
+
+### The final layer must be the source of truth
