@@ -1,6 +1,6 @@
 # Lapis 
 
-Lapis is a small library to build data read stores with batching and multilayer caching support. Inspired by [Facebook's dataloader](https://github.com/graphql/dataloader).
+Lapis is a small Golang library to build data read stores with batching and multilayer caching support. Inspired by [Facebook's dataloader](https://github.com/graphql/dataloader).
 
 ## Features 
 
