@@ -26,6 +26,7 @@ func newSquareMockStore(t *testing.T, fakeDelay time.Duration) *lapis.Store[int,
 		Batcher: &lapis.BatcherConfig[int, int]{
 			MaxBatch: 256,
 		},
+		Identifier: "SquareMockStore",
 	})
 	if err != nil {
 		t.Fatalf("failed to create mock square store")

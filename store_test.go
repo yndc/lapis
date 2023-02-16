@@ -94,6 +94,7 @@ func TestDeepLayers(t *testing.T) {
 		Extensions: []lapis.Extension{
 			&extension.Logger[int, int]{},
 		},
+		Identifier: "DeepLayerStore",
 	})
 
 	assert.Nil(t, err)
@@ -121,6 +122,7 @@ func TestDeepLayers(t *testing.T) {
 func TestSet(t *testing.T) {
 	backend := &SettableBackend{fakeDelay: 0 * time.Millisecond, multiplier: 1}
 	store, err := lapis.New(lapis.Config[int, int]{
+		Identifier: "TestSet",
 		Batcher: &lapis.BatcherConfig[int, int]{
 			MaxBatch: 256,
 			Wait:     10 * time.Millisecond,
@@ -181,6 +183,7 @@ func TestSet(t *testing.T) {
 func TestPartialError(t *testing.T) {
 	backend := &NotPrimeOnlyBackend{fakeDelay: 100 * time.Millisecond}
 	store, err := lapis.New(lapis.Config[int, int]{
+		Identifier: "PartialError",
 		Batcher: &lapis.BatcherConfig[int, int]{
 			MaxBatch: 256,
 			Wait:     10 * time.Millisecond,
@@ -224,7 +227,7 @@ func TestPrometheus(t *testing.T) {
 	backend := &NotPrimeOnlyBackend{fakeDelay: 100 * time.Millisecond}
 	metrics := extension.NewStoreMetrics()
 	store, err := lapis.New(lapis.Config[int, int]{
-		Identifier: "test_prometheus",
+		Identifier: "TestPrometheus",
 		Batcher: &lapis.BatcherConfig[int, int]{
 			MaxBatch: 256,
 			Wait:     10 * time.Millisecond,

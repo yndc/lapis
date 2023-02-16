@@ -48,7 +48,8 @@ func (r *Store[TKey, TValue]) getTraceID() uint64 {
 // Create a new data store with the given configuration
 func New[TKey comparable, TValue any](config Config[TKey, TValue]) (*Store[TKey, TValue], error) {
 	r := &Store[TKey, TValue]{
-		layers: config.Layers,
+		layers:     config.Layers,
+		identifier: config.Identifier,
 	}
 	if config.Batcher.MaxBatch > 0 {
 		r.useBatcher = true
