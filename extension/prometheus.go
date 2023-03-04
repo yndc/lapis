@@ -16,6 +16,7 @@ const (
 
 // Collection of prometheus metrics
 type StoreMetrics struct {
+	AdditionalLabels        []string
 	LoadTimeHistogram       *prometheus.HistogramVec
 	LoadBatchHistogram      *prometheus.HistogramVec
 	SetTimeHistogram        *prometheus.HistogramVec
@@ -26,52 +27,55 @@ type StoreMetrics struct {
 	LayerSetBatchHistogram  *prometheus.HistogramVec
 }
 
-func NewStoreMetrics() *StoreMetrics {
+// Create a new store metric collector
+// additionalLabels is a list of additional labels used for metric partitioning
+func NewStoreMetrics(additionalLabels ...string) *StoreMetrics {
 	c := &StoreMetrics{}
+	c.AdditionalLabels = additionalLabels
 	c.LoadTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "lapis",
 		Name:      "load_time_seconds",
 		Help:      "The time it takes to resolve a load request",
-	}, []string{"store", "status"})
+	}, append(additionalLabels, []string{"store", "status"}...))
 	c.LoadBatchHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "lapis",
 		Name:      "load_batch",
 		Help:      "The batch size for each load",
-	}, []string{"store"})
+	}, append(additionalLabels, []string{"store"}...))
 	c.LayerLoadTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "lapis",
 		Subsystem: "layer",
 		Name:      "load_time_seconds",
 		Help:      "The time a layer takes to resolve a load request",
-	}, []string{"store", "layer", "status"})
+	}, append(additionalLabels, []string{"store", "layer", "status"}...))
 	c.LayerLoadBatchHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "lapis",
 		Subsystem: "layer",
 		Name:      "load_batch",
 		Help:      "The batch size for each load on to a layer",
-	}, []string{"store", "layer"})
+	}, append(additionalLabels, []string{"store", "layer"}...))
 	c.SetTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "lapis",
 		Name:      "set_time_seconds",
 		Help:      "The time it takes to resolve a set request",
-	}, []string{"store", "status"})
+	}, append(additionalLabels, []string{"store", "status"}...))
 	c.SetBatchHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "lapis",
 		Name:      "set_batch",
 		Help:      "The batch size for each set",
-	}, []string{"store"})
+	}, append(additionalLabels, []string{"store"}...))
 	c.LayerSetTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "lapis",
 		Subsystem: "layer",
 		Name:      "set_time_seconds",
 		Help:      "The time a layer takes to resolve a set request",
-	}, []string{"store", "layer", "status"})
+	}, append(additionalLabels, []string{"store", "layer", "status"}...))
 	c.LayerSetBatchHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "lapis",
 		Subsystem: "layer",
 		Name:      "set_batch",
 		Help:      "The batch size for each set on to a layer",
-	}, []string{"store", "layer"})
+	}, append(additionalLabels, []string{"store", "layer"}...))
 	return c
 }
 
@@ -79,6 +83,7 @@ func NewStoreMetrics() *StoreMetrics {
 type PrometheusMetrics[TKey comparable, TValue any] struct {
 	storeName          string
 	metrics            *StoreMetrics
+	labelValues        []string
 	layerIdentifiers   []string
 	layerLoadStartTime []map[uint64]time.Time
 	layerLoadMu        []sync.Mutex
@@ -90,9 +95,12 @@ type PrometheusMetrics[TKey comparable, TValue any] struct {
 	setMu              sync.Mutex
 }
 
-func NewPrometheusMetrics[TKey comparable, TValue any](metrics *StoreMetrics) *PrometheusMetrics[TKey, TValue] {
+// Create a new prometheus metrics extension with the given metrics collector
+// labels is an optional parameter to add the given labels into the metrics from this store
+func NewPrometheusMetrics[TKey comparable, TValue any](metrics *StoreMetrics, labelValues ...string) *PrometheusMetrics[TKey, TValue] {
 	return &PrometheusMetrics[TKey, TValue]{
-		metrics: metrics,
+		labelValues: labelValues,
+		metrics:     metrics,
 	}
 }
 
@@ -117,7 +125,7 @@ func (e *PrometheusMetrics[TKey, TValue]) InitializationHook(r *lapis.Store[TKey
 
 func (e *PrometheusMetrics[TKey, TValue]) PreLoadHook(traceID uint64, keys []TKey) []error {
 	// record the batch size
-	e.metrics.LoadBatchHistogram.WithLabelValues(e.storeName).Observe(float64(len(keys)))
+	e.metrics.LoadBatchHistogram.WithLabelValues(append(e.labelValues, e.storeName)...).Observe(float64(len(keys)))
 
 	// record the start time for this trace
 	e.loadMu.Lock()
@@ -143,7 +151,7 @@ func (e *PrometheusMetrics[TKey, TValue]) PostLoadHook(traceID uint64, keys []TK
 		} else {
 			status = Error
 		}
-		e.metrics.LoadTimeHistogram.WithLabelValues(e.storeName, status).Observe(traceTime)
+		e.metrics.LoadTimeHistogram.WithLabelValues(append(e.labelValues, e.storeName, status)...).Observe(traceTime)
 	}
 
 	return nil
@@ -151,7 +159,7 @@ func (e *PrometheusMetrics[TKey, TValue]) PostLoadHook(traceID uint64, keys []TK
 
 func (e *PrometheusMetrics[TKey, TValue]) PreSetHook(traceID uint64, keys []TKey, values []TValue) []error {
 	// record the batch size
-	e.metrics.SetBatchHistogram.WithLabelValues(e.storeName).Observe(float64(len(keys)))
+	e.metrics.SetBatchHistogram.WithLabelValues(append(e.labelValues, e.storeName)...).Observe(float64(len(keys)))
 
 	// record the start time for this trace
 	e.setMu.Lock()
@@ -175,13 +183,13 @@ func (e *PrometheusMetrics[TKey, TValue]) PostSetHook(traceID uint64, keys []TKe
 		} else {
 			status = Error
 		}
-		e.metrics.LayerSetTimeHistogram.WithLabelValues(e.storeName, status).Observe(traceTime)
+		e.metrics.LayerSetTimeHistogram.WithLabelValues(append(e.labelValues, e.storeName, status)...).Observe(traceTime)
 	}
 }
 
 func (e *PrometheusMetrics[TKey, TValue]) LayerPreLoadHook(traceID uint64, layerIndex int, keys []TKey) []error {
 	// record the batch size
-	e.metrics.LayerLoadBatchHistogram.WithLabelValues(e.storeName, e.layerIdentifiers[layerIndex]).Observe(float64(len(keys)))
+	e.metrics.LayerLoadBatchHistogram.WithLabelValues(append(e.labelValues, e.storeName, e.layerIdentifiers[layerIndex])...).Observe(float64(len(keys)))
 
 	// record the start time for this trace
 	e.layerLoadMu[layerIndex].Lock()
@@ -207,7 +215,7 @@ func (e *PrometheusMetrics[TKey, TValue]) LayerPostLoadHook(traceID uint64, laye
 		} else {
 			status = Error
 		}
-		e.metrics.LayerLoadTimeHistogram.WithLabelValues(e.storeName, e.layerIdentifiers[layerIndex], status).Observe(traceTime)
+		e.metrics.LayerLoadTimeHistogram.WithLabelValues(append(e.labelValues, e.storeName, e.layerIdentifiers[layerIndex], status)...).Observe(traceTime)
 	}
 
 	return nil
@@ -215,7 +223,7 @@ func (e *PrometheusMetrics[TKey, TValue]) LayerPostLoadHook(traceID uint64, laye
 
 func (e *PrometheusMetrics[TKey, TValue]) LayerPreSetHook(traceID uint64, layerIndex int, keys []TKey, values []TValue) []error {
 	// record the batch size
-	e.metrics.LayerSetBatchHistogram.WithLabelValues(e.storeName, e.layerIdentifiers[layerIndex]).Observe(float64(len(keys)))
+	e.metrics.LayerSetBatchHistogram.WithLabelValues(append(e.labelValues, e.storeName, e.layerIdentifiers[layerIndex])...).Observe(float64(len(keys)))
 
 	// record the start time for this trace
 	e.layerSetMu[layerIndex].Lock()
@@ -239,6 +247,6 @@ func (e *PrometheusMetrics[TKey, TValue]) LayerPostSetHook(traceID uint64, layer
 		} else {
 			status = Error
 		}
-		e.metrics.LayerSetTimeHistogram.WithLabelValues(e.storeName, e.layerIdentifiers[layerIndex], status).Observe(traceTime)
+		e.metrics.LayerSetTimeHistogram.WithLabelValues(append(e.labelValues, e.storeName, e.layerIdentifiers[layerIndex], status)...).Observe(traceTime)
 	}
 }
